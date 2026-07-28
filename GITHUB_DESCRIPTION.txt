@@ -1,0 +1,1 @@
+An eval harness that gates deployment and measures its own judges. Three LLM judges score a system under test against a rubric, plus two non-voting shadows, and the gate fails CI on a golden-set regression. Reports human agreement, Cohen's kappa, self-consistency, judge error correlation, and refuses a gate inside the judges' own noise floor.
