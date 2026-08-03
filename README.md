@@ -505,6 +505,16 @@ publishing:
 [typed-agent-service](https://github.com/jkelly-dev1/typed-agent-service),
 [temporal-multi-agent](https://github.com/jkelly-dev1/temporal-multi-agent).
 
+Two of them apply this repo's finding directly.
+[prompt-injection-benchmark](https://github.com/jkelly-dev1/prompt-injection-benchmark) reports pairwise failure correlation
+between defenses because of what the judge panel here did: three judges across
+two vendors whose errors were completely nested, so majority voting corrected
+nothing. [ai-data-boundary-proxy](https://github.com/jkelly-dev1/ai-data-boundary-proxy) measures the marginal gain of a
+second PII detector for the same reason, and its real-model run found the
+matching trap one layer down -- a neighbor-probe threshold calibrated against
+one embedding model separates nothing under another, and reports zeros while
+doing it.
+
 ## License
 
 MIT
