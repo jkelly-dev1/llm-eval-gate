@@ -504,7 +504,8 @@ publishing:
 [agentic-review-gate](https://github.com/jkelly-dev1/agentic-review-gate),
 [typed-agent-service](https://github.com/jkelly-dev1/typed-agent-service),
 [temporal-multi-agent](https://github.com/jkelly-dev1/temporal-multi-agent),
-[federated-retrieval-router](https://github.com/jkelly-dev1/federated-retrieval-router).
+[federated-retrieval-router](https://github.com/jkelly-dev1/federated-retrieval-router),
+[hardened-mcp-server](https://github.com/jkelly-dev1/hardened-mcp-server).
 
 Two of them apply this repo's finding directly.
 [prompt-injection-benchmark](https://github.com/jkelly-dev1/prompt-injection-benchmark) reports pairwise failure correlation
