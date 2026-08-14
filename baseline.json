@@ -1,0 +1,9 @@
+{
+  "measured_pass_rate": 0.8,
+  "panel_mode": "honest",
+  "prompt_version_hash": "8278310947f5bf7ff4dab6fda00c9356a331ec1370b69bab0e004bfe8a7d8611",
+  "recorded_at": "2026-07-27T23:54:14.809080+00:00",
+  "repeats": 3,
+  "run_id": "run-c2d39935ebab",
+  "sut_version": "sut.v1"
+}
