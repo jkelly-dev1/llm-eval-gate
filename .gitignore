@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+KEY_INFO.md
+*.local.md
+
+# Everything under the audit directory, at any depth, except the placeholder
+# that keeps the directory itself in the tree. A pattern of audit/*.jsonl would
+# have missed audit/registry.json and anything in a nested run directory, and
+# would have committed the demo's log and registry state. audit/* excludes
+# nested directories wholesale, which is what was wanted. The directory is
+# recreated at runtime, and the gate writes to a tempfile.TemporaryDirectory()
+# so a CI run never touches it at all.
+audit/*
+!audit/.gitkeep

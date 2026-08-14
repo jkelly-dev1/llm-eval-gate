@@ -1,0 +1,61 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel an in-flight run when the same branch is pushed again.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      # Pinned to current majors (verified against the CI-green sibling repos):
+      # checkout v7, setup-python v7.
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: pytest -q
+
+      # The eval gate is the guardrail: it exits 1 when the golden set
+      # regresses, so a prompt or threshold change that makes the system under
+      # test ship a quality regression cannot merge. The gate also refuses to
+      # run at all when the threshold sits inside the judges' measured noise
+      # floor, because a pass or fail signal narrower than the noise is not a
+      # signal.
+      - name: Eval gate
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python -m eval_gate.evals.gate
+
+      # This demo is the offline end to end path. Running it in CI
+      # keeps SAMPLE_RUN.md honest: if the demo breaks, the build
+      # breaks.
+      - name: Demo (offline mock)
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python scripts/run_demo.py

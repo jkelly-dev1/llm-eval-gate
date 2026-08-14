@@ -1,0 +1,9 @@
+{
+  "measured_pass_rate": 1.0,
+  "panel_mode": "two_miscalibrated",
+  "prompt_version_hash": "8278310947f5bf7ff4dab6fda00c9356a331ec1370b69bab0e004bfe8a7d8611",
+  "recorded_at": "2026-07-27T23:56:46.322183+00:00",
+  "repeats": 3,
+  "run_id": "run-ac22cfe77fab",
+  "sut_version": "sut.v1"
+}
