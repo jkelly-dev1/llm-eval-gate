@@ -1,7 +1,7 @@
 """The typed contracts: one judge's verdict, one panel's verdict, one audit row.
 
 These are pydantic v2 models rather than dicts because the judge output is the
-one place a real model touches this system, where things go wrong quietly. A
+one place a real model touches this system, where things go wrong silently. A
 judge that returns prose instead of JSON, or JSON with a verdict spelled
 "PASS", should degrade to an abstention that the calibration layer can count,
 not to a KeyError three functions later.
@@ -47,7 +47,7 @@ class JudgeVerdict(BaseModel):
     #: rest exist only to measure how much that first run could have differed.
     repeat: int = 1
     #: True for a non voting shadow judge. Carried on the verdict itself so the
-    #: aggregation step can REFUSE a shadow verdict rather than trusting the
+    #: aggregation step can REFUSE a shadow verdict instead of trusting the
     #: caller to have filtered it out. See panel.aggregate.
     shadow: bool = False
 
@@ -118,9 +118,9 @@ class AuditRecord(BaseModel):
     def payload_for_hash(self) -> dict:
         """Everything except the hash itself, including prev_hash.
 
-        prev_hash is inside the hashed payload on purpose: that is what makes
-        the chain a chain. Drop it and each record still verifies against its
-        own content while reordering the file goes undetected.
+        prev_hash is inside the hashed payload: that is what makes the chain a
+        chain. Drop it and each record still verifies against its own content
+        while reordering the file goes undetected.
         """
         return {
             "event": self.event,

@@ -23,7 +23,9 @@ SHORT = re.compile(r"`(::[\w]+)`")
 
 def collected() -> set[str]:
     proc = subprocess.run(
-        [".venv/bin/python", "-m", "pytest", "--collect-only", "-q"],
+        # The interpreter running this script, so a checkout without .venv
+        # collects with whatever Python it was invoked with.
+        [sys.executable, "-m", "pytest", "--collect-only", "-q"],
         cwd=ROOT,
         capture_output=True,
         text=True,

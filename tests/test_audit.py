@@ -1,6 +1,6 @@
 """The append only hash chained log, and what it can still be trusted to prove.
 
-An audit log's only value is that it cannot be quietly revised after the fact, so
+An audit log's only value is that it cannot be silently revised after the fact, so
 the property asserted here is not that records are written but that editing,
 reordering or removing one is detectable. `prev_hash` is inside each record's hashed
 payload, which is what turns the file into a chain rather than a list of
@@ -83,7 +83,7 @@ def test_the_audit_hash_is_stable_across_key_order(tmp_path):
     whole value of the log is that it says when a decision was made. So this test
     holds the timestamp fixed and varies only the key order, then shows that a
     different timestamp does change the hash, which is the documented boundary
-    stated out loud instead of quietly worked around.
+    stated out loud instead of silently worked around.
     """
     stamp = "2026-07-27T01:40:44.757182+00:00"
     payload = {"panel_mode": "honest", "exit_code": 0, "failures": ["a", "b"]}

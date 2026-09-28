@@ -16,7 +16,7 @@ The last test in this module guards a fixture rather than a function.
 test_the_golden_set_label_distribution_is_deliberately_skewed exists because the
 whole argument for reporting Cohen's kappa depends on 24 of 30 baseline cases being
 labeled pass. If someone "balances" the golden set to 50/50, raw agreement stops
-flattering a constant-pass judge, every calibration claim quietly stops
+flattering a constant-pass judge, every calibration claim silently stops
 demonstrating its point, and nothing else in the suite would notice.
 """
 

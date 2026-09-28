@@ -1,7 +1,7 @@
 """Shared fixtures for the suite.
 
 Everything here exists to make a claim in a test module non-vacuous, so each
-fixture's docstring names the claim it serves rather than describing its own
+fixture's docstring names the claim it serves instead of describing its own
 plumbing.
 
 Two rules bind every fixture below. First, no test may reach the network: the
@@ -161,7 +161,7 @@ def shadow_bench():
 class ScriptedRawJudge(MockJudgeStrict):
     """A judge that returns one canned raw string, whatever it is asked.
 
-    Makes the tolerant parser claims non-vacuous end to end. Calling
+    Makes the tolerant parser claims non-vacuous through the whole pipeline. Calling
     parse_judge_response directly proves the parser tolerates fenced or prose
     wrapped JSON; routing the same string through judge_case proves the tolerance
     survives into the JudgeVerdict the panel is handed, which is where a strict
@@ -237,10 +237,10 @@ def stub_real_providers(monkeypatch):
 class FakeAnthropicMessage:
     """One Anthropic response object, with a settable stop_reason.
 
-    Makes test_a_refusal_stop_reason_becomes_an_abstention non-vacuous without a
-    key. `content` is deliberately empty on a refusal, because that is the shape
-    the API returns and reading content[0] unconditionally is the crash the
-    stop_reason check exists to prevent.
+    Makes test_a_refusal_stop_reason_becomes_an_abstention non-vacuous without
+    a key. `content` is empty on a refusal, because that is the shape the API
+    returns and reading content[0] unconditionally is the crash the stop_reason
+    check exists to prevent.
     """
 
     def __init__(self, stop_reason: str, text: str = "") -> None:
@@ -438,7 +438,7 @@ def aggregate_with_ties_resolved_toward_pass():
 # --------------------------------------------------------------------------- #
 
 # The file is append only below the marker, so the imports the later sections
-# need are declared here rather than being added to the header block above.
+# need are declared here instead of being added to the header block above.
 import dataclasses  # noqa: E402
 import shutil  # noqa: E402
 
@@ -703,7 +703,7 @@ def perfect_pairs() -> list[tuple[str, str]]:
     """A judge that agrees on every unit of a mixed label set: kappa 1.
 
     po = 1.0, so kappa = (1 - pe)/(1 - pe) = 1 for any pe below 1. The labels are
-    mixed on purpose: a perfect judge on a single class set is the degenerate case
+    mixed: a perfect judge on a single class set is the degenerate case
     cohen_kappa documents separately, not this one.
     """
     return [
@@ -853,7 +853,7 @@ def prompt_dir(tmp_path) -> Path:
     """A writable copy of the committed prompt assets.
 
     Editing a prompt has to be done on disk, because a version is identified by
-    the sha256 of the file body. Copying the real assets rather than writing
+    the sha256 of the file body. Copying the real assets instead of writing
     synthetic ones keeps the hash claims about the prompts the project ships.
     """
     destination = tmp_path / "prompts"

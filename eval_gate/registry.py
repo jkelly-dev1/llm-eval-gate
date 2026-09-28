@@ -16,7 +16,7 @@ says.
 `rollback()` moves the active pointer back to the previous version by APPENDING to
 the history rather than by popping it, so v1 -> v2 -> v1 says what happened: v2
 went live and was withdrawn. Rolling back is a decision, and a registry that
-quietly forgets a rollback is a registry that will one day claim a version was
+silently forgets a rollback is a registry that will one day claim a version was
 never live.
 """
 
@@ -29,7 +29,7 @@ from pathlib import Path
 from eval_gate.audit import AuditLog, utc_now
 from eval_gate.prompts import PromptLibrary
 
-#: The binding outcome written for a rollback. It is deliberately NOT "passed",
+#: The binding outcome written for a rollback. It is NOT "passed",
 #: because a rollback is not an approval: `approving_run` still has to answer with
 #: the eval run that gated the restored version, or None if no run ever did.
 ROLLBACK_OUTCOME = "rolled-back-to"
@@ -166,7 +166,7 @@ class PromptRegistry:
         The binding's outcome is ROLLBACK_OUTCOME rather than "passed", so
         `approving_run` cannot mistake the act of rolling back for an approval.
 
-        A second consecutive rollback is refused rather than walking further back.
+        A second consecutive rollback is refused instead of walking further back.
         Once the history reads v1 -> v2 -> v1 the entry before the live one is v2,
         the version just withdrawn, so rolling back again would re-activate it: a
         promotion wearing a rollback's name. Skipping past it to some earlier entry

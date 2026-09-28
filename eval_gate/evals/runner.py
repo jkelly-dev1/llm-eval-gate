@@ -155,7 +155,11 @@ def run_panel(
     panel = panel if panel is not None else get_panel(settings)
     shadow = shadow if shadow is not None else get_shadow_judges(settings)
     library = library or PromptLibrary()
-    repeats = max(1, settings.judge_repeats)
+    if settings.judge_repeats < 1:
+        raise ValueError(
+            f"judge_repeats must be at least 1, got {settings.judge_repeats}"
+        )
+    repeats = settings.judge_repeats
     degraded = panel_degraded(panel)
     manifest = library.manifest_hash()
     run_id = run_id_for(panel, repeats, manifest)
@@ -339,6 +343,7 @@ def build_report(result: RunResult) -> CalibrationReport:
         unanimity_rate=panel.unanimity_rate,
         panel_kappa=panel.kappa,
         panel_false_pass_rate=panel.false_pass_rate,
+        voters=result.panel_size,
     )
 
     return CalibrationReport(
@@ -368,9 +373,9 @@ def build_report(result: RunResult) -> CalibrationReport:
 
 
 #: What `deployment_decision` reads when the gate refuses to produce one. It is
-#: deliberately not "ALLOW" and not "BLOCK": a refusal is not a quiet pass, and it
-#: is not a merge block either. The string exists so an operator cannot mistake it
-#: for a verdict.
+#: not "ALLOW" and not "BLOCK": a refusal is not a quiet pass, and it is not a
+#: merge block either. The string exists so an operator cannot mistake it for a
+#: verdict.
 NO_DECISION = "NO DECISION (refused)"
 
 
@@ -418,6 +423,9 @@ class GateDecision:
     #: Set when there is no committed baseline at all, which is fatal: there is
     #: nothing to compare against, and inventing a comparison would be worse.
     baseline_missing: bool = False
+    #: Why a refused run was refused, as (bullet prose, exit driver). Empty for
+    #: the noise floor refusal, whose text depends on the two figures above.
+    refusal: tuple[str, str] = ("", "")
 
     @property
     def panel_healthy(self) -> bool:
@@ -438,13 +446,16 @@ class GateDecision:
         """Everything to print as a bullet, in exit precedence order."""
         rows: list[str] = []
         if self.refused:
-            rows.append(
+            rows.append(self.refusal[0] or (
                 f"REFUSING TO RUN: regression threshold {self.threshold:.3f} is inside "
                 f"the measured noise floor {self.noise_floor:.3f} (panel flip rate). A "
                 f"gate tighter than its own judges' variance is not a gate. Raise the "
                 f"threshold above {self.noise_floor:.3f} or make the judges more "
                 f"consistent."
-            )
+            ))
+            # The calibration checks still ran, so their failures are listed:
+            # a refusal says nothing about whether the panel is fit to gate.
+            rows.extend(self.panel_failures)
             return rows
         if self.baseline_missing:
             rows.append(
@@ -476,7 +487,8 @@ class GateDecision:
         """Which conditions force a non-zero exit, in precedence order."""
         drivers: list[str] = []
         if self.refused:
-            drivers.append("refused: threshold sits inside the measured noise floor")
+            drivers.append(self.refusal[1]
+                           or "refused: threshold sits inside the measured noise floor")
         if self.baseline_missing:
             drivers.append("no committed baseline record to compare against")
         if self.baseline_incomparable:
@@ -538,6 +550,7 @@ def evaluate_gate(
     threshold = settings.gate_max_pass_rate_drop
     noise_floor = report.consistency.noise_floor
     candidate = candidate_version or report.candidate_version
+    candidate_measured = candidate in report.panel.pass_rate
     candidate_pass_rate = report.panel.pass_rate.get(candidate, 0.0)
     baseline_rate = baseline.measured_pass_rate if baseline else 0.0
     drop = baseline_rate - candidate_pass_rate if baseline else 0.0
@@ -561,6 +574,7 @@ def evaluate_gate(
             prompt_version_hash=report.prompt_manifest_hash,
             panel_mode=report.panel_mode,
             repeats=report.repeats,
+            panel_size=report.panel_size,
         )
         decision.baseline_warnings = baseline.comparable_with(**comparison)
         decision.baseline_differing_fields = baseline.differing_fields(**comparison)
@@ -580,18 +594,37 @@ def evaluate_gate(
         decision.regression_detected = False
         decision.deployment_decision = NO_DECISION
 
-    # THE SIGNATURE CHECK, and it comes first because nothing after it means
-    # anything if it fails. A threshold inside the panel's own variance cannot
+    # THE SIGNATURE CHECK. A threshold inside the panel's own variance cannot
     # distinguish a regression from a rerun, so the gate produces no verdict at
-    # all rather than a manufactured one.
-    if threshold < noise_floor:
+    # all rather than a manufactured one. AT the floor is inside it: a drop equal
+    # to the flip rate is exactly what a rerun can produce.
+    #
+    # Two refusals come before it, because each makes that comparison
+    # meaningless in its own way. With fewer than two repeats nothing can flip,
+    # so the floor reads 0.000 without having been measured. And a candidate the
+    # run never scored has no pass rate at all: reading 0.000 for it would
+    # report a regression on a version nobody looked at.
+    if report.repeats < 2:
+        decision.refusal = (
+            f"REFUSING TO RUN: the noise floor is NOT MEASURED. This run judged "
+            f"each case {report.repeats} time(s), and a flip rate needs at least "
+            f"2. Set --repeats 2 or more.",
+            "refused: noise floor not measured (fewer than 2 repeats)",
+        )
+    elif not candidate_measured:
+        decision.refusal = (
+            f"REFUSING TO RUN: candidate {candidate} was not measured by this run "
+            f"(measured: {', '.join(sorted(report.panel.pass_rate))}). There is no "
+            f"pass rate to compare with the baseline.",
+            f"refused: candidate {candidate} was not measured by this run",
+        )
+    if decision.refusal[0] or threshold <= noise_floor:
         decision.refused = True
         # No verdict, so no regression finding and no deployment decision either.
-        # `failures` already short circuits to the refusal alone; these two lines
-        # stop the same refused run from claiming a regression in `exit_driver`.
+        # The calibration checks below still run, as they do for an
+        # incomparable baseline: a refusal does not say the panel is healthy.
         decision.regression_detected = False
         decision.deployment_decision = NO_DECISION
-        return decision
 
     for judge in report.judges:
         if judge.kappa < settings.gate_min_judge_kappa:
@@ -628,13 +661,21 @@ def evaluate_gate(
             f"/{discrimination.cases} = {discrimination.never_discriminate_rate:.3f} > "
             f"{settings.gate_max_never_discriminate_rate:.3f}; {discrimination.suspicion()}"
         )
-    if discrimination.unanimity_rate > settings.gate_max_unanimity_rate:
+    # Unanimity needs at least two voters. One judge always agrees with itself,
+    # so the check would fail every single judge run on a figure it cannot
+    # measure; it is skipped and the metrics block says "not measured".
+    if (discrimination.voters > 1
+            and discrimination.unanimity_rate > settings.gate_max_unanimity_rate):
         decision.panel_failures.append(
             f"unanimity_rate {discrimination.unanimity_rate:.3f} > "
             f"{settings.gate_max_unanimity_rate:.3f}; {discrimination.suspicion()}"
         )
 
     return decision
+
+
+def _unanimity(voters: int, rate: float) -> str:
+    return f"{rate:.3f}" if voters > 1 else "not measured (one judge)"
 
 
 def format_metrics(
@@ -699,15 +740,15 @@ def format_metrics(
 
     lines.append("")
     lines.append("Panel")
-    row("unanimity_rate", f"{panel.unanimity_rate:.3f}")
+    row("unanimity_rate", _unanimity(report.panel_size, panel.unanimity_rate))
     row("split_rate", f"{panel.split_rate:.3f}")
     row("escalation_rate", f"{panel.escalation_rate:.3f}")
     row("best_single_judge", f"{panel.best_single_judge} (kappa {panel.best_single_judge_kappa:.3f})")
     row("panel_kappa_vs_best_single_judge", f"{panel.kappa_vs_best_single_judge:+.3f}")
     if not panel.panel_earned_its_cost:
         lines.append(
-            "  THE PANEL DID NOT BEAT ITS BEST MEMBER: three judges cost 3x and bought "
-            "nothing measurable here"
+            "  THE PANEL DID NOT BEAT ITS BEST MEMBER: three judges cost 3x the calls "
+            "and bought nothing measurable here"
         )
     for name in (report.baseline_version, report.candidate_version):
         row(f"pass_rate[{name}]", f"{panel.pass_rate.get(name, 0.0):.3f}")
@@ -722,7 +763,8 @@ def format_metrics(
     for name in sorted(report.consistency.per_judge_flip_rate):
         row(f"flip_rate[{name}]", f"{report.consistency.per_judge_flip_rate[name]:.3f}")
     row("panel_flip_rate", f"{report.consistency.panel_flip_rate:.3f}")
-    row("NOISE_FLOOR", f"{report.consistency.noise_floor:.3f}")
+    row("NOISE_FLOOR", f"{report.consistency.noise_floor:.3f}" if report.repeats > 1
+        else f"not measured ({report.repeats} repeat)")
     row("gate threshold", f"{decision.threshold:.3f}")
     lines.append(
         "  temperature is not available on claude-opus-5 or claude-sonnet-5 (HTTP 400), "
@@ -761,7 +803,8 @@ def format_metrics(
         f"({discrimination.never_discriminate_rate:.3f})",
     )
     row("panel_abstention_rate", f"{discrimination.panel_abstention_rate:.3f}")
-    row("unanimity_rate", f"{discrimination.unanimity_rate:.3f}")
+    row("unanimity_rate",
+        _unanimity(discrimination.voters, discrimination.unanimity_rate))
     row("suspicion", discrimination.suspicion())
 
     lines.append("")

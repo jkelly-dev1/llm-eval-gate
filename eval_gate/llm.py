@@ -57,6 +57,8 @@ _SECTION = re.compile(
     re.MULTILINE | re.DOTALL,
 )
 _ATTEMPT = re.compile(r"^ATTEMPT:\s*(\d+)\s*$", re.MULTILINE)
+_FENCE_OPEN = "<candidate_answer>"
+_FENCE_CLOSE = "</candidate_answer>"
 _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
 _WORD = re.compile(r"[a-z][a-z']+")
 
@@ -143,6 +145,16 @@ def parse_judge_prompt(user: str) -> dict[str, str]:
     prompt can then rot without any test noticing.
     """
     fields = {"question": "", "source": "", "answer": "", "attempt": "1"}
+    # judge.v2 fences the answer. The labeled blocks are read only from the
+    # text BEFORE the fence, so an answer that contains "SOURCE:" or
+    # "QUESTION:" cannot replace the real ones, and the answer is exactly the
+    # text between the tags. An unfenced v1 prompt is read as it always was.
+    fence = user.find(_FENCE_OPEN)
+    if fence != -1:
+        end = user.rfind(_FENCE_CLOSE)
+        fields["answer"] = user[fence + len(_FENCE_OPEN):
+                                end if end > fence else len(user)].strip()
+        user = user[:fence]
     for match in _SECTION.finditer(user):
         label = match.group(1)
         body = match.group("body").strip()
@@ -150,7 +162,7 @@ def parse_judge_prompt(user: str) -> dict[str, str]:
             fields["question"] = body
         elif label == "SOURCE":
             fields["source"] = body
-        else:
+        elif fence == -1:
             fields["answer"] = body
     attempt = _ATTEMPT.search(user)
     if attempt:
@@ -164,7 +176,7 @@ def _numbers(text: str) -> set[str]:
 
 
 def _stem(word: str) -> str:
-    """A crude suffix stripper, deliberately not a real stemmer.
+    """A crude suffix stripper, not a real stemmer.
 
     It exists because comparing raw words marks a good answer off topic: the
     question says "submitting an expense report" and the answer says "expense
@@ -247,7 +259,7 @@ def approximate_grounding(answer: str, source: str) -> float:
     That single difference is what makes the ambiguous cases in the golden set
     split the panel: both judges are applying a defensible reading of the same
     rubric line, and the harness measures which reading agrees with the humans
-    rather than declaring one of them correct.
+    instead of declaring one of them correct.
     """
     answer_numbers = _numbers(answer)
     if not answer_numbers:
@@ -645,7 +657,7 @@ class MockJudgeFormatBiased:
 #: behaviors, each a documented judge failure mode. The bench is a list of
 #: behaviors rather than a fixed pair because the number of shadow slots is
 #: configuration (SHADOW_JUDGE_MODELS), and the offline bench has to follow it:
-#: an offline run that quietly benched two judges when four were configured would
+#: an offline run that silently benched two judges when four were configured would
 #: report shadow metrics for a bench nobody asked for.
 SHADOW_MOCK_BENCH: tuple[type, ...] = (
     MockJudgeVerbosityBiased,
@@ -678,7 +690,7 @@ def shadow_mock_judges(count: int = DEFAULT_SHADOW_SLOTS) -> list[LLMProvider]:
     of a number already in the report, and the cost versus accuracy table would
     compare a judge against itself at a different price. For the same reason the
     bench is never padded by repeating a behavior: asking for more slots than the
-    bench holds raises ShadowBenchExhausted rather than returning a different
+    bench holds raises ShadowBenchExhausted instead of returning a different
     number of judges than the caller asked for.
     """
     if count < 0:
@@ -760,7 +772,7 @@ def panel_degraded(panel: list[LLMProvider]) -> bool:
 
     A run that fell back to a mock for one slot is not a real three model panel
     and must never be reported as one. The flag rides on every PanelVerdict and
-    into the audit trail rather than being printed once and forgotten.
+    into the audit trail instead of being printed once and forgotten.
     """
     kinds = {is_mock(provider) for provider in panel}
     return len(kinds) > 1
@@ -777,7 +789,7 @@ def slot_labels(panel: list[LLMProvider]) -> list[str]:
     """Per slot: real and which vendor, or a mock fallback. Ordered by slot.
 
     The real model section prints this so a reader can tell a genuine three model
-    panel from one that quietly filled a slot with a deterministic mock. Naming
+    panel from one that silently filled a slot with a deterministic mock. Naming
     the slots individually matters because `panel_degraded` collapses the whole
     question to one boolean, and a boolean cannot say WHICH slot fell back.
     """
@@ -979,7 +991,7 @@ def get_provider(settings: Settings | None = None) -> LLMProvider:
     """Return the configured single provider.
 
     The iron rule: a provider name without its matching key falls back to the
-    mock rather than crashing, and a key alone never selects a provider. A stray
+    mock instead of crashing, and a key alone never selects a provider. A stray
     environment variable must not be able to send a demo run to a paid API.
     """
     settings = settings or get_settings()
@@ -1002,8 +1014,9 @@ def get_provider(settings: Settings | None = None) -> LLMProvider:
 def get_panel(settings: Settings | None = None) -> list[LLMProvider]:
     """Return the judge panel: three slots, or one when the size is 1.
 
-    Real mode fills the slots with claude-opus-5, claude-sonnet-5 and gpt-4o.
-    Offline mode fills them with three distinct deterministic mocks. The same
+    Real mode fills the slots with claude-opus-5, claude-sonnet-5 and
+    gpt-5.6-terra (gpt-4o is a shadow slot, not a voting one). AGENT_MODEL
+    replaces the model of AGENT_PROVIDER's first slot only. Offline mode fills them with three distinct deterministic mocks. The same
     iron rule applies per slot: a slot whose credential is missing falls back to
     a mock, and the run records that the panel was degraded rather than
     reporting a partially real panel as a real three model panel.
@@ -1029,7 +1042,7 @@ def get_panel(settings: Settings | None = None) -> list[LLMProvider]:
         slots.append(
             AnthropicProvider(
                 anthropic_key,
-                settings.agent_model or settings.anthropic_model_secondary,
+                settings.anthropic_model_secondary,
                 settings.max_output_tokens,
             )
         )
@@ -1042,7 +1055,8 @@ def get_panel(settings: Settings | None = None) -> list[LLMProvider]:
         else:
             slots.append(offline[2])
     elif provider == "openai" and openai_key:
-        slots.append(OpenAIProvider(openai_key, settings.openai_model, settings.max_output_tokens))
+        slots.append(OpenAIProvider(
+            openai_key, settings.model_for("openai"), settings.max_output_tokens))
         if anthropic_key:
             slots.append(
                 AnthropicProvider(
@@ -1081,7 +1095,7 @@ def get_shadow_judges(settings: Settings | None = None) -> list[LLMProvider]:
     cost versus accuracy table are only interpretable if the bench in the
     report is the bench that was configured.
 
-    Shadow judges are returned by a SEPARATE factory from get_panel() on purpose.
+    Shadow judges are returned by a SEPARATE factory from get_panel().
     A single factory with a flag would put voting and non voting judges in one
     list, and the one property that has to hold here is that a shadow judge can
     never reach the vote. Keeping them in different lists from the moment they are

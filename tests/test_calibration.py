@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import dataclasses
 
+import pytest
+
 from eval_gate.calibration import (
     calibrate_rater,
     cohen_kappa,
@@ -31,6 +33,7 @@ from eval_gate.calibration import (
     measure_correlation,
     raw_agreement,
 )
+from eval_gate.config import Settings
 from eval_gate.evals.runner import evaluate_gate, format_metrics
 
 
@@ -51,8 +54,20 @@ def test_cohens_kappa_is_one_for_a_perfect_judge(perfect_pairs):
     assert cohen_kappa(perfect_pairs) == 1.0
 
 
+def test_a_judge_never_shown_a_fail_case_does_not_score_a_perfect_kappa():
+    """One label class makes kappa undefined, and it must not read as 1.000.
+
+    A judge that abstains on every human-fail unit keeps only pass/pass pairs.
+    At 1.000 it would clear the kappa floor and be named the best single judge;
+    at 0.000, agreement explained entirely by chance, it fails the floor."""
+    assert cohen_kappa([("pass", "pass")] * 8) == 0.0
+    assert cohen_kappa([("fail", "fail")] * 8) == 0.0
+    assert cohen_kappa([("pass", "pass")] * 8) < Settings().gate_min_judge_kappa
+
+
 def test_raw_agreement_flatters_a_judge_that_always_answers_pass(
-    skewed_human_labels, constant_pass_verdicts, rater_health_rules
+    skewed_human_labels, constant_pass_verdicts, rater_health_rules, offline_run,
+    settings
 ):
     """The argument for reporting kappa at all, made on the real golden set.
 
@@ -84,6 +99,13 @@ def test_raw_agreement_flatters_a_judge_that_always_answers_pass(
     assert reading_raw_agreement(rater) == reading_raw_agreement(
         dataclasses.replace(rater, kappa=0.857)
     )
+
+    # The gate's own rule too, not only the copy above: seated in a real panel,
+    # the constant-pass judge fails the kappa floor in evaluate_gate.
+    _result, report = offline_run("honest")
+    seated = dataclasses.replace(report, judges=[rater, *report.judges[1:]])
+    failures = evaluate_gate(seated, settings).panel_failures
+    assert [f for f in failures if f.startswith("judge constant-pass kappa 0.000")]
 
 
 def test_false_pass_and_false_fail_are_reported_separately(opposite_error_profiles):
@@ -238,7 +260,7 @@ def test_the_report_says_so_when_the_panel_does_not_beat_its_best_member(
     decision = evaluate_gate(report, settings)
     text = format_metrics(report, decision)
     assert "THE PANEL DID NOT BEAT ITS BEST MEMBER" in text
-    assert "three judges cost 3x and bought nothing measurable here" in text
+    assert "three judges cost 3x the calls and bought nothing measurable here" in text
 
     # And the line is conditional rather than always printed, so it still means
     # something on the day a panel does earn its cost.
@@ -311,3 +333,103 @@ def test_an_abstention_is_excluded_from_kappa_and_counted_on_its_own(skewed_huma
     assert rater.abstained == 6
     assert rater.abstention_rate == 0.2
     assert rater.scored + rater.abstained == rater.units
+
+
+def _baseline_for(report, rate: float, *, repeats: int | None = None):
+    from eval_gate.baseline import BaselineRecord
+    return BaselineRecord(
+        prompt_version_hash=report.prompt_manifest_hash,
+        sut_version="sut.v1",
+        panel_mode=report.panel_mode,
+        repeats=report.repeats if repeats is None else repeats,
+        measured_pass_rate=rate,
+        recorded_at="t",
+        run_id="r",
+        panel_size=report.panel_size,
+    )
+
+
+def test_a_threshold_equal_to_the_noise_floor_is_inside_it(offline_run, settings):
+    """A drop equal to the flip rate is what a rerun can produce, so a
+    threshold AT the floor is refused, and one just above it is not."""
+    _result, report = offline_run("honest")
+    floor = report.consistency.noise_floor
+    baseline = _baseline_for(report, report.panel.pass_rate["sut.v1"])
+    at = Settings(**{**settings.model_dump(), "gate_max_pass_rate_drop": floor})
+    above = Settings(**{**settings.model_dump(),
+                        "gate_max_pass_rate_drop": floor + 0.001})
+
+    assert evaluate_gate(report, at, baseline=baseline).refused is True
+    assert evaluate_gate(report, above, baseline=baseline).refused is False
+
+
+def test_a_drop_equal_to_the_threshold_is_not_a_regression(offline_run, settings):
+    """The README says a drop PAST the threshold is a regression."""
+    _result, report = offline_run("honest")
+    candidate = report.panel.pass_rate["sut.v1"]
+    threshold = settings.gate_max_pass_rate_drop
+    exact = _baseline_for(report, candidate + threshold)
+    drop = exact.measured_pass_rate - candidate
+    pinned = Settings(**{**settings.model_dump(), "gate_max_pass_rate_drop": drop})
+    past = _baseline_for(report, candidate + drop + 0.001)
+
+    assert evaluate_gate(report, pinned, baseline=exact,
+                         candidate_version="sut.v1").regression_detected is False
+    assert evaluate_gate(report, pinned, baseline=past,
+                         candidate_version="sut.v1").regression_detected is True
+
+
+def test_one_repeat_leaves_the_noise_floor_unmeasured_and_the_gate_refuses(
+    offline_run, settings
+):
+    """Nothing can flip in one repeat, so the floor reads 0.000 without having
+    been measured. A baseline recorded at one repeat does not change that."""
+    _result, report = offline_run("honest", repeats=1)
+    decision = evaluate_gate(
+        report, settings, baseline=_baseline_for(report, 0.8, repeats=1))
+
+    assert decision.refused is True
+    assert decision.exit_drivers[0] == (
+        "refused: noise floor not measured (fewer than 2 repeats)")
+    assert "NOISE_FLOOR                        not measured (1 repeat)" in (
+        format_metrics(report, decision))
+
+
+def test_zero_repeats_is_an_error_not_a_run_of_one(offline_run):
+    with pytest.raises(ValueError, match="judge_repeats must be at least 1"):
+        offline_run("honest", repeats=0)
+
+
+@pytest.mark.parametrize("where,field,past,words", [
+    ("panel", "false_fail_rate", "gate_max_panel_false_fail_rate",
+     "panel false_fail_rate"),
+    ("panel", "abstention_rate", "gate_max_panel_abstention_rate",
+     "panel abstention_rate"),
+    ("discrimination", "unanimity_rate", "gate_max_unanimity_rate",
+     "unanimity_rate"),
+])
+def test_each_panel_ceiling_fails_the_gate_on_its_own(
+    offline_run, settings, where, field, past, words
+):
+    """.env.example documents these ceilings as enforced. Each is pushed just
+    past its setting while every other figure stays honest, so only that
+    check can fail the run."""
+    _result, report = offline_run("honest")
+    over = getattr(settings, past) + 0.01
+    part = dataclasses.replace(getattr(report, where), **{field: over})
+    decision = evaluate_gate(dataclasses.replace(report, **{where: part}), settings)
+
+    assert [f for f in decision.panel_failures if f.startswith(words)], decision.panel_failures
+    assert decision.panel_healthy is False
+    assert evaluate_gate(report, settings).panel_failures == []
+
+
+def test_a_golden_set_smaller_than_the_floor_fails_the_gate(offline_run, settings):
+    _result, report = offline_run("honest")
+    small = dataclasses.replace(report.discrimination,
+                                cases=settings.gate_min_cases - 1)
+    decision = evaluate_gate(dataclasses.replace(report, discrimination=small),
+                             settings)
+
+    assert [f for f in decision.panel_failures if "fewer than the" in f]
+    assert decision.panel_healthy is False

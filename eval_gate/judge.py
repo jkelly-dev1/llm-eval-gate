@@ -8,7 +8,7 @@ would then attribute a parse failure to the system under test.
 
 So an unparseable response becomes verdict="abstain" with raw_ok=False. An
 abstention does not vote, and the abstention rate is reported separately from
-agreement, which means a judge that is quietly broken shows up as a rising
+agreement, which means a judge that is silently broken shows up as a rising
 abstention rate rather than as a plausible looking accuracy number.
 """
 
@@ -20,9 +20,61 @@ import re
 from eval_gate.evals.golden import GoldenCase
 from eval_gate.llm import LLMProvider
 from eval_gate.models import RUBRIC_CRITERIA, JudgeVerdict
-from eval_gate.prompts import PromptLibrary, render_judge_user_prompt
+from eval_gate.prompts import JUDGE_PROMPT_VERSION, PromptLibrary, render_judge_user_prompt
 
 _VALID_VERDICTS = ("pass", "fail", "abstain")
+
+
+def _brace_span_end(text: str, at: int) -> int:
+    """Index just past the brace span opening at `at`, or -1 if it never
+    closes. Braces inside JSON strings do not count."""
+    depth, in_str, esc = 0, False, False
+    for i in range(at, len(text)):
+        c = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+        elif c == '"':
+            in_str = True
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+    return -1
+
+
+def first_json_object(text: str) -> dict | None:
+    """The first complete JSON object in `text`, or None.
+
+    Decoded from each "{" in turn, so a reply that carries two objects, or a
+    braced word in prose before the object, still yields the object. One span
+    from the first "{" to the last "}" fails on both.
+    """
+    decoder = json.JSONDecoder()
+    at = text.find("{")
+    while at != -1:
+        try:
+            obj, _ = decoder.raw_decode(text, at)
+        except json.JSONDecodeError:
+            # Resume AFTER this brace span, never inside it: a "{" nested
+            # in a truncated reply is a fragment of it (a line item, a
+            # sub-verdict), not the reply. A span that never closes is a
+            # truncated reply, and there is no object to return.
+            end = _brace_span_end(text, at)
+            if end == -1:
+                return None
+            at = text.find("{", end)
+            continue
+        if isinstance(obj, dict):
+            return obj
+        at = text.find("{", at + 1)
+    return None
 
 
 def parse_judge_response(raw: str) -> tuple[str, dict[str, bool], list[str], bool]:
@@ -36,18 +88,9 @@ def parse_judge_response(raw: str) -> tuple[str, dict[str, bool], list[str], boo
     if text.startswith("```"):
         text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
         text = re.sub(r"\n?```$", "", text).strip()
-    if not text.startswith("{"):
-        start = text.find("{")
-        end = text.rfind("}")
-        if start == -1 or end == -1 or end < start:
-            return "abstain", {}, ["unparseable judge response"], False
-        text = text[start : end + 1]
-    try:
-        payload = json.loads(text)
-    except (json.JSONDecodeError, TypeError):
+    payload = first_json_object(text)
+    if payload is None:
         return "abstain", {}, ["unparseable judge response"], False
-    if not isinstance(payload, dict):
-        return "abstain", {}, ["judge response was not an object"], False
 
     verdict = str(payload.get("verdict", "")).strip().lower()
     if verdict not in _VALID_VERDICTS:
@@ -72,7 +115,7 @@ def judge_case(
     *,
     repeat: int = 1,
     library: PromptLibrary | None = None,
-    judge_prompt_version: str = "v1",
+    judge_prompt_version: str = JUDGE_PROMPT_VERSION,
     judge_name: str | None = None,
     shadow: bool = False,
 ) -> JudgeVerdict:
@@ -95,6 +138,7 @@ def judge_case(
         source=case.source,
         answer=case.answer(sut_version),
         attempt=repeat,
+        judge_prompt_version=judge_prompt_version,
     )
     raw = judge.complete(system=system, user=user)
     verdict, criteria, reasons, raw_ok = parse_judge_response(raw)

@@ -3,7 +3,7 @@
 The rules, and why each one is what it is:
 
   - Abstentions do not vote. Counting an abstention as a fail would let a broken
-    judge quietly veto every case; counting it as a pass would let it wave
+    judge silently veto every case; counting it as a pass would let it wave
     everything through. Either way the panel would be reporting a verdict it did
     not reach.
   - Fewer than 2 voting judges means the panel abstains. One opinion is not a
@@ -45,11 +45,17 @@ def aggregate(
     if shadows:
         # Structural, not advisory. A shadow judge in the vote is the one bug
         # this design cannot tolerate, so it fails loudly at the boundary rather
-        # than quietly shifting a majority.
+        # than silently shifting a majority.
         raise ValueError(
             f"shadow judges cannot vote: {', '.join(shadows)}"
         )
 
+    units = sorted({(item.case_id, item.sut_version, item.repeat) for item in verdicts})
+    if len(units) > 1:
+        # One panel verdict describes one unit. Verdicts from different cases,
+        # versions or repeats would be counted as one vote and reported under
+        # the first verdict's case id.
+        raise ValueError(f"cannot aggregate verdicts from different units: {units}")
     case_id = verdicts[0].case_id
     sut_version = verdicts[0].sut_version
     repeat = verdicts[0].repeat
@@ -81,7 +87,10 @@ def aggregate(
         verdict = "abstain"
         escalated = True
 
-    unanimous = len(set(votes)) == 1
+    # A panel that abstained to a judge is not unanimous: it said nothing. It
+    # would otherwise push unanimity_rate towards 1.0 and draw the "judges
+    # almost never disagree" diagnosis instead of a broken-panel one.
+    unanimous = len(set(votes)) == 1 and votes[0] != "abstain"
     split = len({item for item in voting}) > 1
 
     return PanelVerdict(

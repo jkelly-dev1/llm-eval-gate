@@ -15,7 +15,7 @@ never shipped, and the registry then has no way to answer the one question a
 postmortem asks. The rollback also writes a binding and an audit record, and neither
 of them launders the restored version into an approved one.
 
-Two properties are about refusal rather than recording. Approving a prompt version
+Two properties are about refusal instead of recording. Approving a prompt version
 is the act of rewriting a committed file, and that act is refused when the panel
 that measured it just failed its own calibration checks, when the run was refused
 outright, or when the audit chain does not verify: a baseline recorded on the word
@@ -109,7 +109,7 @@ def test_editing_a_prompt_produces_a_new_version(prompt_dir, tmp_path):
 def test_rollback_restores_the_previous_active_version(prompt_dir, tmp_path):
     """Rolling back moves the active pointer, and both refusals guard the pointer.
 
-    A rollback with nothing to roll back to raises rather than quietly doing
+    A rollback with nothing to roll back to raises rather than silently doing
     nothing, because a silent no-op is how an operator comes to believe a bad
     prompt was reverted while it is still live. A SECOND consecutive rollback
     raises for the mirror image reason: after v1 -> v2 -> v1 the entry before the
@@ -159,7 +159,7 @@ def test_a_rollback_is_recorded_rather_than_erased(prompt_dir, tmp_path, audit_l
     deleted. The append leaves ["v1", "v2", "v1"]: v2 went live, and it was withdrawn.
 
     The other half is that a rollback is itself a recorded decision, with an actor
-    and a reason, in the hash chained log where it cannot be quietly revised, and
+    and a reason, in the hash chained log where it cannot be silently revised, and
     that "which eval run approved the prompt currently in production" is still a
     lookup afterwards. The rollback binding does not answer that question by
     pretending to be an approval: its outcome is "rolled-back-to", so `approving_run`
@@ -219,7 +219,7 @@ def test_a_rollback_to_a_version_no_green_gate_approved_says_so(prompt_dir, tmp_
     """Rolling back does not launder a version into an approved one.
 
     The version being restored here was never gated green, so the rollback binding
-    records NO_APPROVING_RUN rather than borrowing the run id of the version it
+    records NO_APPROVING_RUN instead of borrowing the run id of the version it
     replaced, and `describe` still reports the live prompt as never approved. A
     rollback that made "which run approved this" answerable by inventing an answer
     would be worse than one that left the question open.

@@ -2,10 +2,17 @@
 
 Verbatim captures of `scripts/run_demo.py`, of all five gate invocations, and of
 the real model measurement pass, so a reviewer without an API key can see exactly
-what the harness does and what it refuses to do. Nothing here is retyped: this
-file is assembled from the capture files by `scripts/build_sample_run.py`, and
-every kappa, flip rate, dollar figure, hash and exit code below is the one its
-run produced. Captured 2026-07-28.
+what the harness does and what it refuses to do. This file is assembled from
+the capture files by `scripts/build_sample_run.py`, and every code block below
+is a verbatim slice of one: each kappa, flip rate, dollar figure, hash and exit
+code in a block is the one its run produced. The captions between the blocks
+come from the build script. The offline run and the five gate invocations were
+captured 2026-09-27, the two real model runs 2026-09-26.
+
+The last section, what the real model runs found, is written by hand, not
+captured. `scripts/check_sample_run.py` holds every figure written in digits in
+it to the capture blocks above: each one appears in a block, or is computed from
+figures that do.
 
 Timestamps, run ids and record hashes differ per run and are excluded from the
 determinism claim rather than frozen. A faked timestamp in an audit trail is worse
@@ -41,8 +48,9 @@ voting panel    : mock-strict (mock-deterministic-v1), mock-lenient (mock-determ
 shadow bench    : mock-verbosity (mock-deterministic-v1), mock-literalist (mock-deterministic-v1)
 panel degraded  : no (3 of 3 slots are offline deterministic mocks, so there is nothing real to degrade)
 repeats         : 3
-prompt manifest : 8278310947f5bf7f
+prompt manifest : 8b545e68da22a28e
   judge.v1   eec118bac951245f
+  judge.v2   a110e3da9e902761
   sut.v1     c0b9794cc02d705c
   sut.v2     574044117dcc403b
 
@@ -54,7 +62,7 @@ note: the panel below is three DISTINCT deterministic judges, so the
 0. The committed baseline record
 ==============================================================================
   file            : baseline.json
-  record          : sut.v1 pass_rate 0.800 (honest panel, 3 repeats, prompts 8278310947f5, run-c2d39935ebab)
+  record          : sut.v1 pass_rate 0.800 (honest panel, 3 repeats, prompts 8b545e68da22, run-cd7da0994aad)
   this is the number a candidate is measured against, and it is in version
   control. Comparing sut.v1 against sut.v2 inside one run is a measurement,
   not a gate: the golden set carries a planted regression, so that comparison
@@ -110,13 +118,13 @@ sut.v2 answer: Retail division fourth quarter revenue was around 412.6 million U
 4. The honest panel, measured and gated (mock panel)
 ==============================================================================
 Run
-  run_id                             run-c2d39935ebab
+  run_id                             run-cd7da0994aad
   panel                              mock-strict (mock-deterministic-v1), mock-lenient (mock-deterministic-v1), mock-balanced (mock-deterministic-v1)
   panel_size                         3
   repeats                            3
   panel_mode                         honest
   panel_degraded                     no
-  prompt_manifest_hash               8278310947f5bf7f
+  prompt_manifest_hash               8b545e68da22a28e
 
 Per judge, against human labels
   judge                 agree   kappa  falsePass  falseFail  abstain
@@ -138,7 +146,7 @@ Panel
   escalation_rate                    0.000
   best_single_judge                  mock-balanced (kappa 0.925)
   panel_kappa_vs_best_single_judge   +0.000
-  THE PANEL DID NOT BEAT ITS BEST MEMBER: three judges cost 3x and bought nothing measurable here
+  THE PANEL DID NOT BEAT ITS BEST MEMBER: three judges cost 3x the calls and bought nothing measurable here
   pass_rate[sut.v1]                  0.800
   pass_rate[sut.v2]                  0.533
   within_run_delta                   +0.267 (informative only; the gate compares the committed baseline)
@@ -255,7 +263,7 @@ Decision
     - REGRESSION: sut.v2 pass rate 0.600 is 0.267 below the committed baseline 0.867, more than the 0.150 threshold allows
     - judge mock-miscalibrated kappa 0.000 < 0.200
 
-  baseline record       sut.v1 pass_rate 0.867 (one_miscalibrated panel, 3 repeats, prompts 8278310947f5, run-64ea7349887c)
+  baseline record       sut.v1 pass_rate 0.867 (one_miscalibrated panel, 3 repeats, prompts 8b545e68da22, run-73e6ebe1f850)
   the bad judge passes everything, and the other two outvote it on every
   hallucinated case. The regression is still caught, and the calibration
   layer additionally names the judge that would have missed it. The number it
@@ -284,7 +292,7 @@ Decision
     - panel false_pass_rate 1.000 > 0.300 (a false pass ships a regression)
     - cases_that_never_discriminate 30/30 = 1.000 > 0.700; SUSPICIOUS: cases_that_never_discriminate 30/30 (1.000): most cases give the two versions the same verdict, so they carry no signal; panel kappa 0.000 at or near zero: the panel's verdicts carry no information about the human labels; panel false_pass_rate 1.000 near one: the panel passes almost everything the humans failed. suspect a CAPTURED PANEL: these verdicts cannot gate anything
 
-  baseline record       sut.v1 pass_rate 1.000 (two_miscalibrated panel, 3 repeats, prompts 8278310947f5, run-ac22cfe77fab)
+  baseline record       sut.v1 pass_rate 1.000 (two_miscalibrated panel, 3 repeats, prompts 8b545e68da22, run-f36b1648784d)
   a team whose panel was captured would have recorded ITS baseline with that
   captured panel, so that is the record this run is gated against: same panel,
   same prompt set, same repeats, a valid comparison. The gate is fooled on its
@@ -360,45 +368,45 @@ Decision
 10. What it costs, and whether the cost buys accuracy
 ==============================================================================
 Single judge (priced as claude-opus-5)
-  anthropic            claude-opus-5            180 calls     87399 in   10800 out  $  0.7070
-  TOTAL                                         180 calls     87399 in   10800 out  $  0.7070
-  single judge (first slot) $0.7070  panel $0.7070  multiplier 1.00x
+  anthropic            claude-opus-5            180 calls    103917 in   10800 out  $  0.7896
+  TOTAL                                         180 calls    103917 in   10800 out  $  0.7896
+  single judge (first slot) $0.7896  panel $0.7896  multiplier 1.00x
   token counts are characters/4, an APPROXIMATION, not a tokenizer; real runs use client.messages.count_tokens
-  prices as of 2026-07; claude-sonnet-5 intro rate runs through 2026-08-31 and is in effect today
+  prices as of 2026-08; claude-sonnet-5 is $2/$10 per MTok, the standard price (in effect today)
 
 Voting panel (claude-opus-5, claude-sonnet-5, gpt-5.6-terra)
-  anthropic            claude-opus-5            180 calls     87399 in   10800 out  $  0.7070
-  anthropic            claude-sonnet-5          180 calls     87399 in   10800 out  $  0.2828
-  openai               gpt-5.6-terra            180 calls     87399 in   10800 out  $  0.3805
-  TOTAL                                         540 calls    262197 in   32400 out  $  1.3703
-  single judge (first slot) $0.7070  panel $1.3703  multiplier 1.94x
+  anthropic            claude-opus-5            180 calls    103917 in   10800 out  $  0.7896
+  anthropic            claude-sonnet-5          180 calls    103917 in   10800 out  $  0.3158
+  openai               gpt-5.6-terra            180 calls    103917 in   10800 out  $  0.4218
+  TOTAL                                         540 calls    311751 in   32400 out  $  1.5272
+  single judge (first slot) $0.7896  panel $1.5272  multiplier 1.93x
   token counts are characters/4, an APPROXIMATION, not a tokenizer; real runs use client.messages.count_tokens
-  prices as of 2026-07; claude-sonnet-5 intro rate runs through 2026-08-31 and is in effect today
+  prices as of 2026-08; claude-sonnet-5 is $2/$10 per MTok, the standard price (in effect today)
 
 Shadow bench, NON VOTING (gpt-5.6-luna, gpt-4o)
-  openai               gpt-5.6-luna             180 calls     87399 in   10800 out  $  0.1522
-  openai               gpt-4o                   180 calls     87399 in   10800 out  $  0.3265
-  TOTAL                                         360 calls    174798 in   21600 out  $  0.4787
-  single judge (first slot) $0.1522  panel $0.4787  multiplier 3.15x
+  openai               gpt-5.6-luna             180 calls    103917 in   10800 out  $  0.1687
+  openai               gpt-4o                   180 calls    103917 in   10800 out  $  0.3678
+  TOTAL                                         360 calls    207834 in   21600 out  $  0.5365
+  single judge (first slot) $0.1687  panel $0.5365  multiplier 3.18x
   token counts are characters/4, an APPROXIMATION, not a tokenizer; real runs use client.messages.count_tokens
-  prices as of 2026-07; claude-sonnet-5 intro rate runs through 2026-08-31 and is in effect today
+  prices as of 2026-08; claude-sonnet-5 is $2/$10 per MTok, the standard price (in effect today)
 
-  voting panel $1.3703  +  shadow $0.4787  =  panel plus shadow $1.8490
-  the voting panel costs 1.94x the single judge, and on this run it
+  voting panel $1.5272  +  shadow $0.5365  =  panel plus shadow $2.0637
+  the voting panel costs 1.93x the single judge, and on this run it
   measured +0.000 kappa against its own best member.
 
 Does judge cost buy judge accuracy (sorted by dollars per sweep)
   judge                    model              votes   kappa  falsePass   $/sweep
-  shadow:mock-verbosity    gpt-5.6-luna          no   0.108      0.700    0.1522
-  mock-lenient             claude-sonnet-5      yes   0.842      0.200    0.2828
-  shadow:mock-literalist   gpt-4o                no   0.791      0.000    0.3265
-  mock-balanced            gpt-5.6-terra        yes   0.925      0.050    0.3805
-  mock-strict              claude-opus-5        yes   0.857      0.000    0.7070
-  cheapest shadow:mock-verbosity (gpt-5.6-luna, $0.1522) kappa 0.108
-  dearest  mock-strict (claude-opus-5, $0.7070) kappa 0.857
+  shadow:mock-verbosity    gpt-5.6-luna          no   0.108      0.700    0.1687
+  mock-lenient             claude-sonnet-5      yes   0.842      0.200    0.3158
+  shadow:mock-literalist   gpt-4o                no   0.791      0.000    0.3678
+  mock-balanced            gpt-5.6-terra        yes   0.925      0.050    0.4218
+  mock-strict              claude-opus-5        yes   0.857      0.000    0.7896
+  cheapest shadow:mock-verbosity (gpt-5.6-luna, $0.1687) kappa 0.108
+  dearest  mock-strict (claude-opus-5, $0.7896) kappa 0.857
   the kappa gap is +0.749 against measured noise 0.100, so the price difference is buying a real difference in agreement
-  CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: mock-lenient (claude-sonnet-5, $0.2828) kappa 0.842 vs 0.857, gap +0.015. The extra $0.4242 per sweep is not buying measurable agreement.
-  dollars are the offline characters/4 approximation priced against the models each judge stands in for; prices as of 2026-07
+  CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: mock-lenient (claude-sonnet-5, $0.3158) kappa 0.842 vs 0.857, gap +0.015. The extra $0.4738 per sweep is not buying measurable agreement.
+  dollars are the offline characters/4 approximation priced against the models each judge stands in for; prices as of 2026-08
 
 ==============================================================================
 11. The real model measurement pass (LIVE JUDGES, NEVER GATES)
@@ -438,7 +446,7 @@ Does judge cost buy judge accuracy (sorted by dollars per sweep)
       "mock-balanced (mock-deterministic-v1)"
     ],
     "panel_size": 3,
-    "prompt_manifest_hash": "8278310947f5bf7ff4dab6fda00c9356a331ec1370b69bab0e004bfe8a7d8611",
+    "prompt_manifest_hash": "8b545e68da22a28e5514e428b63916fee57b3e61d455453aebf6b7842c631741",
     "repeats": 3,
     "shadow_judges": [
       "shadow:mock-verbosity",
@@ -450,9 +458,9 @@ Does judge cost buy judge accuracy (sorted by dollars per sweep)
     ]
   },
   "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-  "record_hash": "dab54a849dd2f0cce06bcfca9f22a57526639866f948a7672727efa79e19e216",
-  "run_id": "run-c2d39935ebab",
-  "timestamp": "2026-07-28T01:09:47.608442+00:00"
+  "record_hash": "f76532ed997d8db6965447e035f6f5256858c2c0b31db9f0a1aabad90b6881f9",
+  "run_id": "run-cd7da0994aad",
+  "timestamp": "2026-09-27T17:26:18.626732+00:00"
 }
 
   a scored case:
@@ -477,10 +485,10 @@ Does judge cost buy judge accuracy (sorted by dollars per sweep)
       "pass"
     ]
   },
-  "prev_hash": "dab54a849dd2f0cce06bcfca9f22a57526639866f948a7672727efa79e19e216",
-  "record_hash": "c21fff3b80519292f32bbc507edd9f716d09e17f72bd1a3c1fb4366ab09dcaf0",
-  "run_id": "run-c2d39935ebab",
-  "timestamp": "2026-07-28T01:09:47.609449+00:00"
+  "prev_hash": "f76532ed997d8db6965447e035f6f5256858c2c0b31db9f0a1aabad90b6881f9",
+  "record_hash": "2b04988398c2b1f6f750888d67840c40ff6f0a0a88a38779b5058a28897ec6fa",
+  "run_id": "run-cd7da0994aad",
+  "timestamp": "2026-09-27T17:26:18.627177+00:00"
 }
 
   rewrote record 26 (gc-013 sut.v1) from fail to pass
@@ -491,7 +499,7 @@ Does judge cost buy judge accuracy (sorted by dollars per sweep)
 ==============================================================================
 13. Which eval run approved the prompt that is live
 ==============================================================================
-  judge    active v1   hash eec118bac951  versions v1         approved by NEVER APPROVED BY A GREEN GATE
+  judge    active v2   hash a110e3da9e90  versions v1,v2      approved by NEVER APPROVED BY A GREEN GATE
   sut      active v2   hash 574044117dcc  versions v1,v2      approved by NEVER APPROVED BY A GREEN GATE
 
   sut.v2 is active and has never been approved by a green gate. That is the
@@ -500,8 +508,8 @@ Does judge cost buy judge accuracy (sorted by dollars per sweep)
   history sut             v2 -> v1 -> v2
 
   rollback('sut') -> v1
-  judge    active v1   hash eec118bac951  versions v1         approved by NEVER APPROVED BY A GREEN GATE
-  sut      active v1   hash c0b9794cc02d  versions v1,v2      approved by run-c2d39935ebab
+  judge    active v2   hash a110e3da9e90  versions v1,v2      approved by NEVER APPROVED BY A GREEN GATE
+  sut      active v1   hash c0b9794cc02d  versions v1,v2      approved by run-cd7da0994aad
   history sut             v2 -> v1 -> v2 -> v1
 
   the history is an APPEND, not a pop: v2 is still on the record as having
@@ -512,7 +520,7 @@ Does judge cost buy judge accuracy (sorted by dollars per sweep)
   "event": "prompt_rollback",
   "payload": {
     "actor": "release-eng",
-    "approved_by": "run-c2d39935ebab",
+    "approved_by": "run-cd7da0994aad",
     "from_hash": "574044117dcc403b08970c7e4940810f549078b19bbb983788ba74b532ac33f3",
     "from_version": "v2",
     "prompt_name": "sut",
@@ -521,13 +529,13 @@ Does judge cost buy judge accuracy (sorted by dollars per sweep)
     "to_version": "v1"
   },
   "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-  "record_hash": "a681dd66ecfa7c67a4a1210c2314f97ee913386cafe7360b76665f79dc534209",
-  "run_id": "run-c2d39935ebab",
-  "timestamp": "2026-07-28T01:09:47.644689+00:00"
+  "record_hash": "e2e4c10e26c152912c15515aefc7717b0758945c96cdb52cc72a2730185f415d",
+  "run_id": "run-cd7da0994aad",
+  "timestamp": "2026-09-27T17:26:18.665207+00:00"
 }
 
   rollback log chain verifies : True
-  binding written             : rolled-back-to (eval run run-c2d39935ebab)
+  binding written             : rolled-back-to (eval run run-cd7da0994aad)
   the binding's outcome is not "passed", so rolling back cannot launder an
   ungated version into an approved one: approving_run still answers with the
   run that actually gated v1, or with nothing at all.
@@ -571,7 +579,7 @@ python -m eval_gate.evals.gate ; echo "exit=$?"
 
 ```
 Regression, against the committed baseline record
-  baseline record                    sut.v1 pass_rate 0.800 (honest panel, 3 repeats, prompts 8278310947f5, run-c2d39935ebab)
+  baseline record                    sut.v1 pass_rate 0.800 (honest panel, 3 repeats, prompts 8b545e68da22, run-cd7da0994aad)
   candidate                          sut.v1
   baseline_pass_rate                 0.800
   candidate_pass_rate                0.800
@@ -587,16 +595,16 @@ Decision
 
 Does judge cost buy judge accuracy (sorted by dollars per sweep)
   judge                    model              votes   kappa  falsePass   $/sweep
-  shadow:mock-verbosity    gpt-5.6-luna          no   0.108      0.700    0.1522
-  mock-lenient             claude-sonnet-5      yes   0.842      0.200    0.2828
-  shadow:mock-literalist   gpt-4o                no   0.791      0.000    0.3265
-  mock-balanced            gpt-5.6-terra        yes   0.925      0.050    0.3805
-  mock-strict              claude-opus-5        yes   0.857      0.000    0.7070
-  cheapest shadow:mock-verbosity (gpt-5.6-luna, $0.1522) kappa 0.108
-  dearest  mock-strict (claude-opus-5, $0.7070) kappa 0.857
+  shadow:mock-verbosity    gpt-5.6-luna          no   0.108      0.700    0.1687
+  mock-lenient             claude-sonnet-5      yes   0.842      0.200    0.3158
+  shadow:mock-literalist   gpt-4o                no   0.791      0.000    0.3678
+  mock-balanced            gpt-5.6-terra        yes   0.925      0.050    0.4218
+  mock-strict              claude-opus-5        yes   0.857      0.000    0.7896
+  cheapest shadow:mock-verbosity (gpt-5.6-luna, $0.1687) kappa 0.108
+  dearest  mock-strict (claude-opus-5, $0.7896) kappa 0.857
   the kappa gap is +0.749 against measured noise 0.100, so the price difference is buying a real difference in agreement
-  CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: mock-lenient (claude-sonnet-5, $0.2828) kappa 0.842 vs 0.857, gap +0.015. The extra $0.4242 per sweep is not buying measurable agreement.
-  dollars are the offline characters/4 approximation priced against the models each judge stands in for; prices as of 2026-07
+  CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: mock-lenient (claude-sonnet-5, $0.3158) kappa 0.842 vs 0.857, gap +0.015. The extra $0.4738 per sweep is not buying measurable agreement.
+  dollars are the offline characters/4 approximation priced against the models each judge stands in for; prices as of 2026-08
 
   audit_records                      62
   audit_chain_intact                 yes
@@ -604,7 +612,6 @@ Does judge cost buy judge accuracy (sorted by dollars per sweep)
 EVAL GATE PASSED (30 cases)
   exit driven by: none: panel healthy and no regression against the committed baseline
   deployment_decision ALLOW, candidate sut.v1 pass rate 0.800 vs committed baseline 0.800
-EXIT=0
 exit=0
 ```
 
@@ -616,7 +623,7 @@ python -m eval_gate.evals.gate --candidate sut.v2 ; echo "exit=$?"
 
 ```
 Regression, against the committed baseline record
-  baseline record                    sut.v1 pass_rate 0.800 (honest panel, 3 repeats, prompts 8278310947f5, run-c2d39935ebab)
+  baseline record                    sut.v1 pass_rate 0.800 (honest panel, 3 repeats, prompts 8b545e68da22, run-cd7da0994aad)
   candidate                          sut.v2
   baseline_pass_rate                 0.800
   candidate_pass_rate                0.533
@@ -632,16 +639,16 @@ Decision
 
 Does judge cost buy judge accuracy (sorted by dollars per sweep)
   judge                    model              votes   kappa  falsePass   $/sweep
-  shadow:mock-verbosity    gpt-5.6-luna          no   0.108      0.700    0.1522
-  mock-lenient             claude-sonnet-5      yes   0.842      0.200    0.2828
-  shadow:mock-literalist   gpt-4o                no   0.791      0.000    0.3265
-  mock-balanced            gpt-5.6-terra        yes   0.925      0.050    0.3805
-  mock-strict              claude-opus-5        yes   0.857      0.000    0.7070
-  cheapest shadow:mock-verbosity (gpt-5.6-luna, $0.1522) kappa 0.108
-  dearest  mock-strict (claude-opus-5, $0.7070) kappa 0.857
+  shadow:mock-verbosity    gpt-5.6-luna          no   0.108      0.700    0.1687
+  mock-lenient             claude-sonnet-5      yes   0.842      0.200    0.3158
+  shadow:mock-literalist   gpt-4o                no   0.791      0.000    0.3678
+  mock-balanced            gpt-5.6-terra        yes   0.925      0.050    0.4218
+  mock-strict              claude-opus-5        yes   0.857      0.000    0.7896
+  cheapest shadow:mock-verbosity (gpt-5.6-luna, $0.1687) kappa 0.108
+  dearest  mock-strict (claude-opus-5, $0.7896) kappa 0.857
   the kappa gap is +0.749 against measured noise 0.100, so the price difference is buying a real difference in agreement
-  CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: mock-lenient (claude-sonnet-5, $0.2828) kappa 0.842 vs 0.857, gap +0.015. The extra $0.4242 per sweep is not buying measurable agreement.
-  dollars are the offline characters/4 approximation priced against the models each judge stands in for; prices as of 2026-07
+  CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: mock-lenient (claude-sonnet-5, $0.3158) kappa 0.842 vs 0.857, gap +0.015. The extra $0.4738 per sweep is not buying measurable agreement.
+  dollars are the offline characters/4 approximation priced against the models each judge stands in for; prices as of 2026-08
 
   audit_records                      62
   audit_chain_intact                 yes
@@ -650,11 +657,10 @@ EVAL GATE FAILED
   - REGRESSION: sut.v2 pass rate 0.533 is 0.267 below the committed baseline 0.800, more than the 0.150 threshold allows
 
   exit driven by: regression detected against the committed baseline
-EXIT=1
 exit=1
 ```
 
-#### 3. A captured panel, against a baseline recorded by that same panel
+#### 3. The captured panel, against a baseline recorded by that same panel
 
 ```
 python -m eval_gate.evals.gate --panel two_miscalibrated --candidate sut.v2 \
@@ -663,7 +669,7 @@ python -m eval_gate.evals.gate --panel two_miscalibrated --candidate sut.v2 \
 
 ```
 Regression, against the committed baseline record
-  baseline record                    sut.v1 pass_rate 1.000 (two_miscalibrated panel, 3 repeats, prompts 8278310947f5, run-ac22cfe77fab)
+  baseline record                    sut.v1 pass_rate 1.000 (two_miscalibrated panel, 3 repeats, prompts 8b545e68da22, run-f36b1648784d)
   candidate                          sut.v2
   baseline_pass_rate                 1.000
   candidate_pass_rate                1.000
@@ -679,16 +685,15 @@ Decision
 
 Does judge cost buy judge accuracy (sorted by dollars per sweep)
   judge                    model              votes   kappa  falsePass   $/sweep
-  shadow:mock-verbosity    gpt-5.6-luna          no   0.108      0.700    0.1522
-  mock-lenient             claude-sonnet-5      yes   0.842      0.200    0.2828
-  shadow:mock-literalist   gpt-4o                no   0.791      0.000    0.3265
-  mock-miscalibrated#1     gpt-5.6-terra        yes   0.000      1.000    0.3805
-  mock-miscalibrated#3     gpt-5.6-terra        yes   0.000      1.000    0.3805
-  cheapest shadow:mock-verbosity (gpt-5.6-luna, $0.1522) kappa 0.108
-  dearest  mock-miscalibrated#3 (gpt-5.6-terra, $0.3805) kappa 0.000
-  the kappa gap is -0.108 against measured noise 0.000, so the price difference is buying a real difference in agreement
-  CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: mock-miscalibrated#1 (gpt-5.6-terra, $0.3805) kappa 0.000 vs 0.000, gap +0.000. The extra $0.0000 per sweep is not buying measurable agreement.
-  dollars are the offline characters/4 approximation priced against the models each judge stands in for; prices as of 2026-07
+  shadow:mock-verbosity    gpt-5.6-luna          no   0.108      0.700    0.1687
+  mock-lenient             claude-sonnet-5      yes   0.842      0.200    0.3158
+  shadow:mock-literalist   gpt-4o                no   0.791      0.000    0.3678
+  mock-miscalibrated#1     gpt-5.6-terra        yes   0.000      1.000    0.4218
+  mock-miscalibrated#3     gpt-5.6-terra        yes   0.000      1.000    0.4218
+  cheapest shadow:mock-verbosity (gpt-5.6-luna, $0.1687) kappa 0.108
+  dearest  mock-miscalibrated#3 (gpt-5.6-terra, $0.4218) kappa 0.000
+  the kappa gap is -0.108 against measured noise 0.000: THE CHEAPEST JUDGE AGREES WITH THE HUMANS MORE, so the extra spend is buying worse agreement
+  dollars are the offline characters/4 approximation priced against the models each judge stands in for; prices as of 2026-08
 
   audit_records                      62
   audit_chain_intact                 yes
@@ -700,7 +705,6 @@ EVAL GATE FAILED
   - cases_that_never_discriminate 30/30 = 1.000 > 0.700; SUSPICIOUS: cases_that_never_discriminate 30/30 (1.000): most cases give the two versions the same verdict, so they carry no signal; panel kappa 0.000 at or near zero: the panel's verdicts carry no information about the human labels; panel false_pass_rate 1.000 near one: the panel passes almost everything the humans failed. suspect a CAPTURED PANEL: these verdicts cannot gate anything
 
   exit driven by: panel calibration failed (4 checks)
-EXIT=1
 exit=1
 ```
 
@@ -712,7 +716,7 @@ python -m eval_gate.evals.gate --panel two_miscalibrated --candidate sut.v2 ; ec
 
 ```
 Regression, against the committed baseline record
-  baseline record                    sut.v1 pass_rate 0.800 (honest panel, 3 repeats, prompts 8278310947f5, run-c2d39935ebab)
+  baseline record                    sut.v1 pass_rate 0.800 (honest panel, 3 repeats, prompts 8b545e68da22, run-cd7da0994aad)
   candidate                          sut.v2
   baseline_pass_rate                 0.800
   candidate_pass_rate                1.000
@@ -730,16 +734,15 @@ Decision
 
 Does judge cost buy judge accuracy (sorted by dollars per sweep)
   judge                    model              votes   kappa  falsePass   $/sweep
-  shadow:mock-verbosity    gpt-5.6-luna          no   0.108      0.700    0.1522
-  mock-lenient             claude-sonnet-5      yes   0.842      0.200    0.2828
-  shadow:mock-literalist   gpt-4o                no   0.791      0.000    0.3265
-  mock-miscalibrated#1     gpt-5.6-terra        yes   0.000      1.000    0.3805
-  mock-miscalibrated#3     gpt-5.6-terra        yes   0.000      1.000    0.3805
-  cheapest shadow:mock-verbosity (gpt-5.6-luna, $0.1522) kappa 0.108
-  dearest  mock-miscalibrated#3 (gpt-5.6-terra, $0.3805) kappa 0.000
-  the kappa gap is -0.108 against measured noise 0.000, so the price difference is buying a real difference in agreement
-  CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: mock-miscalibrated#1 (gpt-5.6-terra, $0.3805) kappa 0.000 vs 0.000, gap +0.000. The extra $0.0000 per sweep is not buying measurable agreement.
-  dollars are the offline characters/4 approximation priced against the models each judge stands in for; prices as of 2026-07
+  shadow:mock-verbosity    gpt-5.6-luna          no   0.108      0.700    0.1687
+  mock-lenient             claude-sonnet-5      yes   0.842      0.200    0.3158
+  shadow:mock-literalist   gpt-4o                no   0.791      0.000    0.3678
+  mock-miscalibrated#1     gpt-5.6-terra        yes   0.000      1.000    0.4218
+  mock-miscalibrated#3     gpt-5.6-terra        yes   0.000      1.000    0.4218
+  cheapest shadow:mock-verbosity (gpt-5.6-luna, $0.1687) kappa 0.108
+  dearest  mock-miscalibrated#3 (gpt-5.6-terra, $0.4218) kappa 0.000
+  the kappa gap is -0.108 against measured noise 0.000: THE CHEAPEST JUDGE AGREES WITH THE HUMANS MORE, so the extra spend is buying worse agreement
+  dollars are the offline characters/4 approximation priced against the models each judge stands in for; prices as of 2026-08
 
   audit_records                      62
   audit_chain_intact                 yes
@@ -752,7 +755,6 @@ EVAL GATE FAILED
   - cases_that_never_discriminate 30/30 = 1.000 > 0.700; SUSPICIOUS: cases_that_never_discriminate 30/30 (1.000): most cases give the two versions the same verdict, so they carry no signal; panel kappa 0.000 at or near zero: the panel's verdicts carry no information about the human labels; panel false_pass_rate 1.000 near one: the panel passes almost everything the humans failed. suspect a CAPTURED PANEL: these verdicts cannot gate anything
 
   exit driven by: refused: committed baseline is not comparable to this run (panel_mode differs) (also: panel calibration failed (4 checks))
-EXIT=1
 exit=1
 ```
 
@@ -764,7 +766,7 @@ python -m eval_gate.evals.gate --threshold 0.05 ; echo "exit=$?"
 
 ```
 Regression, against the committed baseline record
-  baseline record                    sut.v1 pass_rate 0.800 (honest panel, 3 repeats, prompts 8278310947f5, run-c2d39935ebab)
+  baseline record                    sut.v1 pass_rate 0.800 (honest panel, 3 repeats, prompts 8b545e68da22, run-cd7da0994aad)
   candidate                          sut.v1
   baseline_pass_rate                 0.800
   candidate_pass_rate                0.800
@@ -780,16 +782,16 @@ Decision
 
 Does judge cost buy judge accuracy (sorted by dollars per sweep)
   judge                    model              votes   kappa  falsePass   $/sweep
-  shadow:mock-verbosity    gpt-5.6-luna          no   0.108      0.700    0.1522
-  mock-lenient             claude-sonnet-5      yes   0.842      0.200    0.2828
-  shadow:mock-literalist   gpt-4o                no   0.791      0.000    0.3265
-  mock-balanced            gpt-5.6-terra        yes   0.925      0.050    0.3805
-  mock-strict              claude-opus-5        yes   0.857      0.000    0.7070
-  cheapest shadow:mock-verbosity (gpt-5.6-luna, $0.1522) kappa 0.108
-  dearest  mock-strict (claude-opus-5, $0.7070) kappa 0.857
+  shadow:mock-verbosity    gpt-5.6-luna          no   0.108      0.700    0.1687
+  mock-lenient             claude-sonnet-5      yes   0.842      0.200    0.3158
+  shadow:mock-literalist   gpt-4o                no   0.791      0.000    0.3678
+  mock-balanced            gpt-5.6-terra        yes   0.925      0.050    0.4218
+  mock-strict              claude-opus-5        yes   0.857      0.000    0.7896
+  cheapest shadow:mock-verbosity (gpt-5.6-luna, $0.1687) kappa 0.108
+  dearest  mock-strict (claude-opus-5, $0.7896) kappa 0.857
   the kappa gap is +0.749 against measured noise 0.100, so the price difference is buying a real difference in agreement
-  CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: mock-lenient (claude-sonnet-5, $0.2828) kappa 0.842 vs 0.857, gap +0.015. The extra $0.4242 per sweep is not buying measurable agreement.
-  dollars are the offline characters/4 approximation priced against the models each judge stands in for; prices as of 2026-07
+  CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: mock-lenient (claude-sonnet-5, $0.3158) kappa 0.842 vs 0.857, gap +0.015. The extra $0.4738 per sweep is not buying measurable agreement.
+  dollars are the offline characters/4 approximation priced against the models each judge stands in for; prices as of 2026-08
 
   audit_records                      62
   audit_chain_intact                 yes
@@ -798,7 +800,6 @@ EVAL GATE FAILED
   - REFUSING TO RUN: regression threshold 0.050 is inside the measured noise floor 0.100 (panel flip rate). A gate tighter than its own judges' variance is not a gate. Raise the threshold above 0.100 or make the judges more consistent.
 
   exit driven by: refused: threshold sits inside the measured noise floor
-EXIT=1
 exit=1
 ```
 
@@ -806,12 +807,32 @@ exit=1
 
 Only section 11 is reproduced, because it is the only section a real provider
 changes and the only one whose numbers can never reach an exit code. Diffing this
-run against the offline capture above, rather than assuming:
+run against the offline capture above, instead of assuming:
 
-- Sections 0 through 10 are byte for byte identical. They gate on the
-  deterministic mock panel whatever `AGENT_PROVIDER` says, which is the design.
-- The header differs in four lines, all naming the panel: `provider`,
-  `voting panel`, `shadow bench` and `panel degraded`.
+- **Sections 0 through 10 gate on the deterministic mock panel** whatever
+  `AGENT_PROVIDER` says, which is the design. The header names the panel and
+  differs as below (`-` this run, `+` the offline capture), once timestamps, run
+  ids and hashes are set aside.
+
+```
+-provider        : anthropic
+-voting panel    : anthropic#1 (claude-opus-5), anthropic#2 (claude-sonnet-5), openai (gpt-5.6-terra)
+-shadow bench    : openai#1 (gpt-5.6-luna), openai#2 (gpt-4o)
+-panel degraded  : no (3 of 3 slots real: 3 models, 2 vendors (anthropic, openai))
++provider        : mock
++voting panel    : mock-strict (mock-deterministic-v1), mock-lenient (mock-deterministic-v1), mock-balanced (mock-deterministic-v1)
++shadow bench    : mock-verbosity (mock-deterministic-v1), mock-literalist (mock-deterministic-v1)
++panel degraded  : no (3 of 3 slots are offline deterministic mocks, so there is nothing real to degrade)
+-note: the sections marked (mock panel) below always run offline, because
+-      a regression gate has to be reproducible. The live panel above is
+-      measured in section 11, which spends money and never gates.
++note: the panel below is three DISTINCT deterministic judges, so the
++      disagreement is real. Against real models the same golden set
++      measures whatever those models actually do.
+```
+
+Sections 0 through 10 are byte for byte identical.
+
 - **Sections 12 and 13 differ only in timestamps and the record hashes that cover
   them**, which is exactly the determinism boundary `tests/test_determinism.py`
   pins, plus one line of section 13's summary: `real model pass skipped (provider
@@ -836,12 +857,12 @@ Before any call is made: the plan, the call count, and the estimate
   TOTAL API CALLS       460  (92 per judge)
                         repeat 1 of every consistency case is reused from the calibration pass, so this is 80 fewer than the 540 two independent passes would cost
   slot                     model               calls    est in  est out     est $
-  anthropic#1              claude-opus-5          92     44977     5520    0.3629
-  anthropic#2              claude-sonnet-5        92     44977     5520    0.1452
-  openai                   gpt-5.6-terra          92     44977     5520    0.1952
-  shadow:openai#1          gpt-5.6-luna           92     44977     5520    0.0781
-  shadow:openai#2          gpt-4o                 92     44977     5520    0.1676
-  ESTIMATED COST        voting $0.7033  +  shadow $0.2457  =  $0.9490
+  anthropic#1              claude-opus-5          92     53419     5520    0.4051
+  anthropic#2              claude-sonnet-5        92     53419     5520    0.1620
+  openai                   gpt-5.6-terra          92     53419     5520    0.2163
+  shadow:openai#1          gpt-5.6-luna           92     53419     5520    0.0865
+  shadow:openai#2          gpt-4o                 92     53419     5520    0.1887
+  ESTIMATED COST        voting $0.7835  +  shadow $0.2753  =  $1.0588
   the estimate is the offline characters/4 approximation, priced against the models in the slots. It is NOT a token count. The measured figures below replace it, and the gap between the two is reported.
 
   calibration pass: 30 cases (gc-001..gc-030), both sut versions, 1 repeat
@@ -873,7 +894,7 @@ Before any call is made: the plan, the call count, and the estimate
     gc-003  sut.v2  r1  anthropic#1              pass
     gc-003  sut.v2  r1  anthropic#2              pass
     gc-003  sut.v2  r1  openai                   pass
-    gc-003  sut.v2  r1  shadow:openai#1          pass
+    gc-003  sut.v2  r1  shadow:openai#1          fail
     gc-003  sut.v2  r1  shadow:openai#2          pass
     gc-004  sut.v1  r1  anthropic#1              pass
     gc-004  sut.v1  r1  anthropic#2              pass
@@ -919,7 +940,7 @@ Before any call is made: the plan, the call count, and the estimate
     gc-008  sut.v1  r1  anthropic#2              pass
     gc-008  sut.v1  r1  openai                   pass
     gc-008  sut.v1  r1  shadow:openai#1          pass
-    gc-008  sut.v1  r1  shadow:openai#2          pass
+    gc-008  sut.v1  r1  shadow:openai#2          fail
     gc-008  sut.v2  r1  anthropic#1              pass
     gc-008  sut.v2  r1  anthropic#2              pass
     gc-008  sut.v2  r1  openai                   pass
@@ -934,7 +955,7 @@ Before any call is made: the plan, the call count, and the estimate
     gc-009  sut.v2  r1  anthropic#2              pass
     gc-009  sut.v2  r1  openai                   pass
     gc-009  sut.v2  r1  shadow:openai#1          pass
-    gc-009  sut.v2  r1  shadow:openai#2          fail
+    gc-009  sut.v2  r1  shadow:openai#2          pass
     gc-010  sut.v1  r1  anthropic#1              pass
     gc-010  sut.v1  r1  anthropic#2              pass
     gc-010  sut.v1  r1  openai                   pass
@@ -944,7 +965,7 @@ Before any call is made: the plan, the call count, and the estimate
     gc-010  sut.v2  r1  anthropic#2              pass
     gc-010  sut.v2  r1  openai                   pass
     gc-010  sut.v2  r1  shadow:openai#1          pass
-    gc-010  sut.v2  r1  shadow:openai#2          fail
+    gc-010  sut.v2  r1  shadow:openai#2          pass
     gc-011  sut.v1  r1  anthropic#1              pass
     gc-011  sut.v1  r1  anthropic#2              pass
     gc-011  sut.v1  r1  openai                   pass
@@ -971,15 +992,15 @@ Before any call is made: the plan, the call count, and the estimate
     gc-013  sut.v1  r1  shadow:openai#1          fail
     gc-013  sut.v1  r1  shadow:openai#2          pass
     gc-013  sut.v2  r1  anthropic#1              fail
-    gc-013  sut.v2  r1  anthropic#2              fail
+    gc-013  sut.v2  r1  anthropic#2              pass
     gc-013  sut.v2  r1  openai                   fail
     gc-013  sut.v2  r1  shadow:openai#1          fail
     gc-013  sut.v2  r1  shadow:openai#2          fail
     gc-014  sut.v1  r1  anthropic#1              fail
-    gc-014  sut.v1  r1  anthropic#2              fail
+    gc-014  sut.v1  r1  anthropic#2              pass
     gc-014  sut.v1  r1  openai                   fail
     gc-014  sut.v1  r1  shadow:openai#1          fail
-    gc-014  sut.v1  r1  shadow:openai#2          pass
+    gc-014  sut.v1  r1  shadow:openai#2          fail
     gc-014  sut.v2  r1  anthropic#1              fail
     gc-014  sut.v2  r1  anthropic#2              fail
     gc-014  sut.v2  r1  openai                   fail
@@ -1171,12 +1192,12 @@ Before any call is made: the plan, the call count, and the estimate
     gc-002  sut.v1  r2  anthropic#2              pass
     gc-002  sut.v1  r2  openai                   pass
     gc-002  sut.v1  r2  shadow:openai#1          pass
-    gc-002  sut.v1  r2  shadow:openai#2          pass
+    gc-002  sut.v1  r2  shadow:openai#2          fail
     gc-002  sut.v1  r3  anthropic#1              pass
     gc-002  sut.v1  r3  anthropic#2              pass
     gc-002  sut.v1  r3  openai                   pass
     gc-002  sut.v1  r3  shadow:openai#1          pass
-    gc-002  sut.v1  r3  shadow:openai#2          pass
+    gc-002  sut.v1  r3  shadow:openai#2          fail
     gc-002  sut.v2  r2  anthropic#1              pass
     gc-002  sut.v2  r2  anthropic#2              pass
     gc-002  sut.v2  r2  openai                   pass
@@ -1200,7 +1221,7 @@ Before any call is made: the plan, the call count, and the estimate
     gc-003  sut.v2  r2  anthropic#1              pass
     gc-003  sut.v2  r2  anthropic#2              pass
     gc-003  sut.v2  r2  openai                   pass
-    gc-003  sut.v2  r2  shadow:openai#1          pass
+    gc-003  sut.v2  r2  shadow:openai#1          fail
     gc-003  sut.v2  r2  shadow:openai#2          pass
     gc-003  sut.v2  r3  anthropic#1              pass
     gc-003  sut.v2  r3  anthropic#2              pass
@@ -1322,88 +1343,88 @@ Which slots were real
 Per judge, against human labels (REAL MODELS)
   judge                     agree   kappa  falsePass  falseFail  abstain
   anthropic#1               0.933   0.857      0.000      0.100    0.000
-  anthropic#2               0.950   0.892      0.000      0.075    0.000
+  anthropic#2               0.983   0.963      0.000      0.025    0.000
   openai                    0.933   0.857      0.000      0.100    0.000
   PANEL                     0.933   0.857      0.000      0.100    0.000
   raw agreement is misleading on this skewed label set; kappa is the number to read
 
 Shadow judges (measured, NON VOTING, never gate)
   judge                     agree   kappa  falsePass  falseFail  abstain
-  shadow:openai#1           0.933   0.857      0.000      0.100    0.000
+  shadow:openai#1           0.917   0.824      0.000      0.125    0.000
   shadow:openai#2           0.883   0.759      0.000      0.175    0.000
 
 Panel
-  unanimity_rate                   0.983
-  split_rate                       0.017
+  unanimity_rate                   0.950
+  split_rate                       0.050
   escalation_rate                  0.000
-  best_single_judge                anthropic#2 (kappa 0.892)
-  panel_kappa_vs_best_single_judge -0.034
-  THE PANEL DID NOT BEAT ITS BEST MEMBER on real models: three judges cost 3x and bought nothing measurable here
+  best_single_judge                anthropic#2 (kappa 0.963)
+  panel_kappa_vs_best_single_judge -0.106
+  THE PANEL DID NOT BEAT ITS BEST MEMBER on real models: three judges cost 3x the calls and bought nothing measurable here
   pass_rate[sut.v1]                0.733
   pass_rate[sut.v2]                0.467
 
 Pairwise error correlation, every pair of judges that ran
   pair                                             joint   indep   ratio  interpretation
-  anthropic#1 + anthropic#2                        0.050   0.003   15.00  errors correlate; majority voting buys less than it appears to
+  anthropic#1 + anthropic#2                        0.017   0.001   15.00  errors correlate; majority voting buys less than it appears to
   anthropic#1 + openai                             0.067   0.004   15.00  errors correlate; majority voting buys less than it appears to
-  anthropic#2 + openai                             0.050   0.003   15.00  errors correlate; majority voting buys less than it appears to
-  anthropic#1 + shadow:openai#1                    0.067   0.004   15.00  errors correlate; majority voting buys less than it appears to
-  anthropic#1 + shadow:openai#2                    0.033   0.008    4.29  errors correlate; majority voting buys less than it appears to
-  anthropic#2 + shadow:openai#1                    0.050   0.003   15.00  errors correlate; majority voting buys less than it appears to
-  anthropic#2 + shadow:openai#2                    0.033   0.006    5.71  errors correlate; majority voting buys less than it appears to
-  openai + shadow:openai#1                         0.067   0.004   15.00  errors correlate; majority voting buys less than it appears to
-  openai + shadow:openai#2                         0.033   0.008    4.29  errors correlate; majority voting buys less than it appears to
-  shadow:openai#1 + shadow:openai#2                0.033   0.008    4.29  errors correlate; majority voting buys less than it appears to
+  anthropic#2 + openai                             0.017   0.001   15.00  errors correlate; majority voting buys less than it appears to
+  anthropic#1 + shadow:openai#1                    0.067   0.006   12.00  errors correlate; majority voting buys less than it appears to
+  anthropic#1 + shadow:openai#2                    0.050   0.008    6.43  errors correlate; majority voting buys less than it appears to
+  anthropic#2 + shadow:openai#1                    0.017   0.001   12.00  errors correlate; majority voting buys less than it appears to
+  anthropic#2 + shadow:openai#2                    0.017   0.002    8.57  errors correlate; majority voting buys less than it appears to
+  openai + shadow:openai#1                         0.067   0.006   12.00  errors correlate; majority voting buys less than it appears to
+  openai + shadow:openai#2                         0.050   0.008    6.43  errors correlate; majority voting buys less than it appears to
+  shadow:openai#1 + shadow:openai#2                0.050   0.010    5.14  errors correlate; majority voting buys less than it appears to
 
 Self consistency, measured on 8 cases x 2 versions x 3 repeats
   flip_rate[anthropic#1]           0.000
   flip_rate[anthropic#2]           0.000
   flip_rate[openai]                0.000
-  flip_rate[shadow:openai#1]       0.062
-  flip_rate[shadow:openai#2]       0.125
+  flip_rate[shadow:openai#1]       0.000
+  flip_rate[shadow:openai#2]       0.250
   panel_flip_rate                  0.000
   REAL NOISE FLOOR                 0.000
   temperature, top_p and top_k are removed on claude-opus-5 and claude-sonnet-5 (HTTP 400), so this is measured rather than configured away. It is NOT compared against any gate threshold: this pass does not gate.
 
 MEASURED cost, voting panel
-  anthropic#1          claude-opus-5             92 calls    105876 in   11343 out  $  0.8130
-  anthropic#2          claude-sonnet-5           92 calls    105876 in    9677 out  $  0.3085
-  openai               gpt-5.6-terra             92 calls     42471 in    5415 out  $  0.1874
-  TOTAL                                         276 calls    254223 in   26435 out  $  1.3089
-  single judge (first slot) $0.8130  panel $1.3089  multiplier 1.61x
-  prices as of 2026-07; claude-sonnet-5 intro rate runs through 2026-08-31 and is in effect today
+  anthropic#1          claude-opus-5             92 calls    117192 in   10538 out  $  0.8494
+  anthropic#2          claude-sonnet-5           92 calls    117192 in    8622 out  $  0.3206
+  openai               gpt-5.6-terra             92 calls     49371 in    5260 out  $  0.2023
+  TOTAL                                         276 calls    283755 in   24420 out  $  1.3723
+  single judge (first slot) $0.8494  panel $1.3723  multiplier 1.62x
+  prices as of 2026-08; claude-sonnet-5 is $2/$10 per MTok, the standard price (in effect today)
 
 MEASURED cost, shadow bench (NON VOTING)
-  shadow:openai#1      gpt-5.6-luna              92 calls     42471 in    8789 out  $  0.0952
-  shadow:openai#2      gpt-4o                    92 calls     42563 in    4712 out  $  0.1535
-  TOTAL                                         184 calls     85034 in   13501 out  $  0.2487
-  single judge (first slot) $0.0952  panel $0.2487  multiplier 2.61x
-  prices as of 2026-07; claude-sonnet-5 intro rate runs through 2026-08-31 and is in effect today
+  shadow:openai#1      gpt-5.6-luna              92 calls     49371 in    8699 out  $  0.1016
+  shadow:openai#2      gpt-4o                    92 calls     49463 in    4766 out  $  0.1713
+  TOTAL                                         184 calls     98834 in   13465 out  $  0.2729
+  single judge (first slot) $0.1016  panel $0.2729  multiplier 2.69x
+  prices as of 2026-08; claude-sonnet-5 is $2/$10 per MTok, the standard price (in effect today)
 
-  voting $1.3089  +  shadow $0.2487  =  combined $1.5576
+  voting $1.3723  +  shadow $0.2729  =  combined $1.6452
 
 Measured against the offline characters/4 estimate
   slot                        est in   real in   ratio     est $    real $
-  anthropic#1                  44977    105876    2.35    0.3629    0.8130
-  anthropic#2                  44977    105876    2.35    0.1452    0.3085
-  openai                       44977     42471    0.94    0.1952    0.1874
-  shadow:openai#1              44977     42471    0.94    0.0781    0.0952
-  shadow:openai#2              44977     42563    0.95    0.1676    0.1535
-  TOTAL                       224885    339257    1.51    0.9490    1.5576
+  anthropic#1                  53419    117192    2.19    0.4051    0.8494
+  anthropic#2                  53419    117192    2.19    0.1620    0.3206
+  openai                       53419     49371    0.92    0.2163    0.2023
+  shadow:openai#1              53419     49371    0.92    0.0865    0.1016
+  shadow:openai#2              53419     49463    0.93    0.1887    0.1713
+  TOTAL                       267095    382589    1.43    1.0588    1.6452
   ratio above 1.00 means characters/4 UNDERCOUNTS the real prompt. That is the reason the offline number is labeled an approximation everywhere it appears and is never quoted as a token count.
 
 Does judge cost buy judge accuracy (sorted by dollars per sweep)
   judge                    model              votes   kappa  falsePass   $/sweep
-  shadow:openai#1          gpt-5.6-luna          no   0.857      0.000    0.0952
-  shadow:openai#2          gpt-4o                no   0.759      0.000    0.1535
-  openai                   gpt-5.6-terra        yes   0.857      0.000    0.1874
-  anthropic#2              claude-sonnet-5      yes   0.892      0.000    0.3085
-  anthropic#1              claude-opus-5        yes   0.857      0.000    0.8130
-  cheapest shadow:openai#1 (gpt-5.6-luna, $0.0952) kappa 0.857
-  dearest  anthropic#1 (claude-opus-5, $0.8130) kappa 0.857
-  THE CHEAPEST JUDGE'S KAPPA IS WITHIN NOISE OF THE MOST EXPENSIVE: gap +0.000, measured noise 0.000. On this golden set the extra spend is not buying agreement with humans.
-  CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: shadow:openai#1 (gpt-5.6-luna, $0.0952) kappa 0.857 vs 0.857, gap +0.000. The extra $0.7177 per sweep is not buying measurable agreement.
-  dollars are MEASURED: vendor reported token usage for this run, priced against the models that actually ran; prices as of 2026-07
+  shadow:openai#1          gpt-5.6-luna          no   0.824      0.000    0.1016
+  shadow:openai#2          gpt-4o                no   0.759      0.000    0.1713
+  openai                   gpt-5.6-terra        yes   0.857      0.000    0.2023
+  anthropic#2              claude-sonnet-5      yes   0.963      0.000    0.3206
+  anthropic#1              claude-opus-5        yes   0.857      0.000    0.8494
+  cheapest shadow:openai#1 (gpt-5.6-luna, $0.1016) kappa 0.824
+  dearest  anthropic#1 (claude-opus-5, $0.8494) kappa 0.857
+  the kappa gap is +0.034 against measured noise 0.000, so the price difference is buying a real difference in agreement
+  CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: openai (gpt-5.6-terra, $0.2023) kappa 0.857 vs 0.857, gap +0.000. The extra $0.6471 per sweep is not buying measurable agreement.
+  dollars are MEASURED: vendor reported token usage for this run, priced against the models that actually ran; prices as of 2026-08
 
 Calls that produced no usable verdict: 0
   none. Every judge returned a readable verdict on every call, which is a good run and is not the claim: the abstention path is exercised offline by tests/test_real_pass.py precisely because no live run can be relied on to exercise it.
@@ -1436,12 +1457,12 @@ Before any call is made: the plan, the call count, and the estimate
   TOTAL API CALLS       160  (32 per judge)
                         repeat 1 of every consistency case is reused from the calibration pass, so this is 40 fewer than the 200 two independent passes would cost
   slot                     model               calls    est in  est out     est $
-  openai                   gpt-5.6-terra          32     15493     1920    0.0675
-  anthropic#2              claude-opus-5          32     15493     1920    0.1255
-  anthropic#3              claude-sonnet-5        32     15493     1920    0.0502
-  shadow:openai#1          gpt-5.6-luna           32     15493     1920    0.0270
-  shadow:openai#2          gpt-4o                 32     15493     1920    0.0579
-  ESTIMATED COST        voting $0.2432  +  shadow $0.0849  =  $0.3281
+  openai                   gpt-5.6-terra          32     18426     1920    0.0749
+  anthropic#2              claude-opus-5          32     18426     1920    0.1401
+  anthropic#3              claude-sonnet-5        32     18426     1920    0.0561
+  shadow:openai#1          gpt-5.6-luna           32     18426     1920    0.0299
+  shadow:openai#2          gpt-4o                 32     18426     1920    0.0653
+  ESTIMATED COST        voting $0.2710  +  shadow $0.0952  =  $0.3663
   the estimate is the offline characters/4 approximation, priced against the models in the slots. It is NOT a token count. The measured figures below replace it, and the gap between the two is reported.
 
   calibration pass: 8 cases (discriminating: gc-015, gc-025, gc-016, gc-026, gc-017, gc-018, gc-019, gc-020), both sut versions, 1 repeat
@@ -1638,7 +1659,7 @@ Panel
   escalation_rate                  0.000
   best_single_judge                anthropic#2 (kappa 1.000)
   panel_kappa_vs_best_single_judge +0.000
-  THE PANEL DID NOT BEAT ITS BEST MEMBER on real models: three judges cost 3x and bought nothing measurable here
+  THE PANEL DID NOT BEAT ITS BEST MEMBER on real models: three judges cost 3x the calls and bought nothing measurable here
   pass_rate[sut.v1]                0.750
   pass_rate[sut.v2]                0.250
 
@@ -1666,44 +1687,44 @@ Self consistency, measured on 4 cases x 2 versions x 3 repeats
   temperature, top_p and top_k are removed on claude-opus-5 and claude-sonnet-5 (HTTP 400), so this is measured rather than configured away. It is NOT compared against any gate threshold: this pass does not gate.
 
 MEASURED cost, voting panel
-  openai               gpt-5.6-terra             32 calls     14668 in    1932 out  $  0.0657
-  anthropic#2          claude-opus-5             32 calls     36651 in    3445 out  $  0.2694
-  anthropic#3          claude-sonnet-5           32 calls     36651 in    3568 out  $  0.1090
-  TOTAL                                          96 calls     87970 in    8945 out  $  0.4440
-  single judge (first slot) $0.0657  panel $0.4440  multiplier 6.76x
-  prices as of 2026-07; claude-sonnet-5 intro rate runs through 2026-08-31 and is in effect today
+  openai               gpt-5.6-terra             32 calls     17068 in    1907 out  $  0.0713
+  anthropic#2          claude-opus-5             32 calls     40587 in    3297 out  $  0.2854
+  anthropic#3          claude-sonnet-5           32 calls     40587 in    2798 out  $  0.1092
+  TOTAL                                          96 calls     98242 in    8002 out  $  0.4658
+  single judge (first slot) $0.0713  panel $0.4658  multiplier 6.54x
+  prices as of 2026-08; claude-sonnet-5 is $2/$10 per MTok, the standard price (in effect today)
 
 MEASURED cost, shadow bench (NON VOTING)
-  shadow:openai#1      gpt-5.6-luna              32 calls     14668 in    3232 out  $  0.0341
-  shadow:openai#2      gpt-4o                    32 calls     14700 in    1718 out  $  0.0539
-  TOTAL                                          64 calls     29368 in    4950 out  $  0.0880
-  single judge (first slot) $0.0341  panel $0.0880  multiplier 2.58x
-  prices as of 2026-07; claude-sonnet-5 intro rate runs through 2026-08-31 and is in effect today
+  shadow:openai#1      gpt-5.6-luna              32 calls     17068 in    3344 out  $  0.0371
+  shadow:openai#2      gpt-4o                    32 calls     17100 in    1765 out  $  0.0604
+  TOTAL                                          64 calls     34168 in    5109 out  $  0.0975
+  single judge (first slot) $0.0371  panel $0.0975  multiplier 2.63x
+  prices as of 2026-08; claude-sonnet-5 is $2/$10 per MTok, the standard price (in effect today)
 
-  voting $0.4440  +  shadow $0.0880  =  combined $0.5320
+  voting $0.4658  +  shadow $0.0975  =  combined $0.5633
 
 Measured against the offline characters/4 estimate
   slot                        est in   real in   ratio     est $    real $
-  openai                       15493     14668    0.95    0.0675    0.0657
-  anthropic#2                  15493     36651    2.37    0.1255    0.2694
-  anthropic#3                  15493     36651    2.37    0.0502    0.1090
-  shadow:openai#1              15493     14668    0.95    0.0270    0.0341
-  shadow:openai#2              15493     14700    0.95    0.0579    0.0539
-  TOTAL                        77465    117338    1.51    0.3281    0.5320
+  openai                       18426     17068    0.93    0.0749    0.0713
+  anthropic#2                  18426     40587    2.20    0.1401    0.2854
+  anthropic#3                  18426     40587    2.20    0.0561    0.1092
+  shadow:openai#1              18426     17068    0.93    0.0299    0.0371
+  shadow:openai#2              18426     17100    0.93    0.0653    0.0604
+  TOTAL                        92130    132410    1.44    0.3663    0.5633
   ratio above 1.00 means characters/4 UNDERCOUNTS the real prompt. That is the reason the offline number is labeled an approximation everywhere it appears and is never quoted as a token count.
 
 Does judge cost buy judge accuracy (sorted by dollars per sweep)
   judge                    model              votes   kappa  falsePass   $/sweep
-  shadow:openai#1          gpt-5.6-luna          no   1.000      0.000    0.0341
-  shadow:openai#2          gpt-4o                no   1.000      0.000    0.0539
-  openai                   gpt-5.6-terra        yes   1.000      0.000    0.0657
-  anthropic#3              claude-sonnet-5      yes   1.000      0.000    0.1090
-  anthropic#2              claude-opus-5        yes   1.000      0.000    0.2694
-  cheapest shadow:openai#1 (gpt-5.6-luna, $0.0341) kappa 1.000
-  dearest  anthropic#2 (claude-opus-5, $0.2694) kappa 1.000
+  shadow:openai#1          gpt-5.6-luna          no   1.000      0.000    0.0371
+  shadow:openai#2          gpt-4o                no   1.000      0.000    0.0604
+  openai                   gpt-5.6-terra        yes   1.000      0.000    0.0713
+  anthropic#3              claude-sonnet-5      yes   1.000      0.000    0.1092
+  anthropic#2              claude-opus-5        yes   1.000      0.000    0.2854
+  cheapest shadow:openai#1 (gpt-5.6-luna, $0.0371) kappa 1.000
+  dearest  anthropic#2 (claude-opus-5, $0.2854) kappa 1.000
   THE CHEAPEST JUDGE'S KAPPA IS WITHIN NOISE OF THE MOST EXPENSIVE: gap +0.000, measured noise 0.000. On this golden set the extra spend is not buying agreement with humans.
-  CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: shadow:openai#1 (gpt-5.6-luna, $0.0341) kappa 1.000 vs 1.000, gap +0.000. The extra $0.2353 per sweep is not buying measurable agreement.
-  dollars are MEASURED: vendor reported token usage for this run, priced against the models that actually ran; prices as of 2026-07
+  CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: shadow:openai#1 (gpt-5.6-luna, $0.0371) kappa 1.000 vs 1.000, gap +0.000. The extra $0.2482 per sweep is not buying measurable agreement.
+  dollars are MEASURED: vendor reported token usage for this run, priced against the models that actually ran; prices as of 2026-08
 
 Calls that produced no usable verdict: 0
   none. Every judge returned a readable verdict on every call, which is a good run and is not the claim: the abstention path is exercised offline by tests/test_real_pass.py precisely because no live run can be relied on to exercise it.
@@ -1721,10 +1742,14 @@ Honest limit 2 applies to every number below. Kappa here is measured over 60
 judged units per judge (30 cases x 2 sut versions) with no confidence interval,
 and the reduced run's over 16. Read the leading digit.
 
+These runs used `judge.v2`, which fences the candidate answer in
+`<candidate_answer>` tags; the captures before 2026-09-26 used `judge.v1`. On
+samples this small no change between the two can be put down to the fence.
+
 ### 1. The panel lost to a single judge, and this time the mechanism is visible
 
-Panel kappa 0.857 against `claude-sonnet-5` alone at 0.892, a gap of -0.034. The
-panel cost $1.3089 against $0.8130 for the first slot on its own, a 1.61x
+Panel kappa 0.857 against `claude-sonnet-5` alone at 0.963, a gap of -0.106. The
+panel cost $1.3723 against $0.8494 for the first slot on its own, a 1.62x
 multiplier for a worse answer. This harness prints the finding itself, in
 capitals, because a negative number in a table is easy to skim past.
 
@@ -1741,13 +1766,13 @@ when one judge's errors are a subset of the other's. Error counts say the
 same thing directly:
 
 ```
-claude-opus-5    4 errors / 60 units      opus + sonnet   joint 3 = all of sonnet's
-claude-sonnet-5  3 errors / 60 units      opus + terra    joint 4 = all of both
-gpt-5.6-terra    4 errors / 60 units      sonnet + terra  joint 3 = all of sonnet's
+claude-opus-5    4 errors / 60 units      opus + sonnet   joint 1 = all of sonnet's
+claude-sonnet-5  1 error  / 60 units      opus + terra    joint 4 = all of both
+gpt-5.6-terra    4 errors / 60 units      sonnet + terra  joint 1 = all of sonnet's
 ```
 
 `claude-opus-5` and `gpt-5.6-terra` were wrong on identically the same four
-units, and `claude-sonnet-5` got one of those four right that both others
+units, and `claude-sonnet-5` got three of those four right that both others
 missed. There is no unit on which any judge is wrong alone.
 
 This is the mechanism behind finding 1. A majority vote can only correct an
@@ -1759,17 +1784,18 @@ vendors, two model families, one set of mistakes.
 
 CAVEAT, and it is load bearing: this is four error units out of sixty. The
 nesting is exact, but it is exact over a very small number of errors, and a
-fifth error landing anywhere would change the ratio. The previous capture read
-the same 15.00 as "a small-sample ceiling rather than a measurement", which was
-half right: it is a real structural measurement, taken on a sample too small to
-settle it. Do not quote finding 2 without this paragraph.
+fifth error landing anywhere would change the ratio. The 15.00 is a real
+structural measurement, taken on a sample too small to settle it. Do not quote
+finding 2 without this paragraph.
 
-### 3. The cheapest judge tied the most expensive, exactly
+### 3. A judge at a quarter of the price tied the most expensive, exactly
 
-`gpt-5.6-luna` in a non voting shadow slot scored kappa 0.857 at $0.0952 per
-sweep. `claude-opus-5` scored kappa 0.857 at $0.8130: 8.5x the price for the
-same number, gap +0.000. The best judge in the run was neither: the mid-priced
-`claude-sonnet-5` at 0.892 for $0.3085.
+`gpt-5.6-terra`, a voting judge, scored kappa 0.857 at $0.2023 per sweep.
+`claude-opus-5` scored kappa 0.857 at $0.8494: 4.2x the price for the same
+number, gap +0.000. The cheapest judge of all, `gpt-5.6-luna` in a non voting
+shadow slot, scored 0.824 at $0.1016, and the harness reports that +0.034 gap
+to the dearest as a real one against a measured noise floor of 0.000. The best
+judge in the run was neither: the mid-priced `claude-sonnet-5` at 0.963 for $0.3206.
 
 The offline mock panel ranks these models in almost the opposite order:
 `mock-verbosity`, which stands in for `gpt-5.6-luna`, is the worst judge in the
@@ -1787,7 +1813,7 @@ impossible to configure away here. `claude-opus-5` and `claude-sonnet-5` reject
 `temperature`, `top_p` and `top_k` with HTTP 400, so the number had to be
 measured.
 
-The shadow judges did flip: `gpt-5.6-luna` at 0.062 and `gpt-4o` at 0.125. That
+One shadow judge did flip: `gpt-4o` at 0.250, and `gpt-5.6-luna` at 0.000. That
 is its own argument for the shadow bench not voting.
 
 The obvious objection to a 0.000 floor is that the full run measures consistency
@@ -1801,13 +1827,15 @@ selection mode that does not exist yet.
 
 ### 5. The cost estimate undercounts, asymmetrically, and reproducibly
 
-The offline `characters/4` approximation was 2.35x low on the Anthropic prompts
-and accurate to 0.94-0.95 on OpenAI. Measured $1.5576 against an estimated
-$0.9490, a total ratio of 1.51.
+The offline `characters/4` approximation was 2.19x low on the Anthropic prompts
+and accurate to 0.92-0.93 on OpenAI. Measured $1.6452 against an estimated
+$1.0588. The ratio quoted here and below is the token ratio, 1.43. The ratio of
+those two dollar figures is 1.55, because the estimate and the measurement do
+not share a per-model price mix.
 
-The reduced run reproduced all three figures on a different sample and a
-different set of cases: 2.37x Anthropic, 0.95 OpenAI, 1.51 total, against a
-measured $0.5320. Two runs, same ratios. This is why the offline dollar figure is
+A reduced run reproduced all three figures on a different sample and a
+different set of cases: 2.20x Anthropic, 0.93 OpenAI, 1.44 total, against a
+measured $0.5633. Two runs, same ratios. This is why the offline dollar figure is
 labeled an approximation everywhere it appears and is never quoted as a token
 count.
 
@@ -1815,10 +1843,12 @@ count.
 
 The first attempt at a reduced sweep bought `gc-001..gc-008`, the first eight
 cases by id. Every judge scored kappa 1.000 and both sut versions passed 100% of
-them, because those eight are grounded cases that pass in both versions: the
-subset contained nothing the two versions disagree about. That is this project's
-own `cases_that_never_discriminate` warning, arriving as a paid capture, and it
-is the reason `--real-case-selection discriminating` now exists and is tested.
+them. That kappa is undefined, because every label and every verdict was pass
+(the code reports 0.000 for it), and the eight are grounded cases that pass in
+both versions: the subset contained nothing the two versions disagree about.
+That is this project's own `cases_that_never_discriminate` warning, arriving as
+a paid capture, and the reason `--real-case-selection discriminating` now exists
+and is tested.
 
 The selection works. The subset it buys separates the versions cleanly, 0.750 to
 0.250, which is exactly the human labels for those eight cases.

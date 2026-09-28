@@ -85,10 +85,13 @@ def cohen_kappa(pairs: list[tuple[str, str]]) -> float:
         human_rate = sum(1 for _, human in pairs if human == label) / total
         expected += judge_rate * human_rate
     if 1.0 - expected <= 1e-12:
-        # Both raters put everything in one class. Agreement is total but
-        # entirely explained by chance, so kappa is undefined; 1.0 when they
-        # actually agreed on every unit, 0.0 otherwise.
-        return 1.0 if observed >= 1.0 - 1e-12 else 0.0
+        # Both raters put everything in one class, so all of the agreement is
+        # explained by chance and the formula divides by zero. Agreement beyond
+        # chance is zero, and 0.0 says so. A 1.0 here would score a judge that
+        # was never shown a human-fail unit as perfect: a judge abstaining on
+        # every fail case keeps only pass/pass pairs, and would clear the kappa
+        # floor and be named the best single judge.
+        return 0.0
     return (observed - expected) / (1.0 - expected)
 
 
@@ -209,6 +212,8 @@ class DiscriminationReport:
     #: configuration where the line needs to say something.
     panel_kappa: float = 0.0
     panel_false_pass_rate: float = 0.0
+    #: How many judges voted. Unanimity is not a signal with one voter.
+    voters: int = 3
 
     @property
     def never_discriminate_rate(self) -> float:
@@ -217,13 +222,18 @@ class DiscriminationReport:
     def signals(self) -> list[str]:
         """Every vacuous gate signal that fired, named, in a fixed order.
 
-        Four independent tells, because they do not co-occur. A captured panel
-        does NOT necessarily look unanimous: measured on this golden set, the
-        panel with two miscalibrated judges scores 0.733 unanimity against the
-        honest panel's 0.867, so a heuristic keyed on unanimity is silent exactly
-        when it matters. The tells that do fire under capture are the
-        discrimination count saturating and the panel's kappa collapsing, which is
-        the stronger finding: it is what validates the vacuous gate metric as the
+        Four tells, checked separately because any one can fire without the
+        others; under a captured panel three of them fire together. The cut
+        points here (0.60, 0.05, 0.90, 0.90) are for this suspicion line only
+        and are not the gate's ceilings, which come from Settings: a line can
+        say SUSPICIOUS on a run that passes, and a run can fail a ceiling while
+        no signal here has fired. A captured panel does NOT necessarily look
+        unanimous: measured on this golden set, the panel with two
+        miscalibrated judges scores 0.733 unanimity against the honest panel's
+        0.867, so a heuristic keyed on unanimity is silent exactly when it
+        matters. The tells that do fire under capture are the discrimination
+        count saturating and the panel's kappa collapsing, which is the
+        stronger finding: it is what validates the vacuous gate metric as the
         thing that catches a captured panel.
         """
         fired: list[str] = []
@@ -243,7 +253,7 @@ class DiscriminationReport:
                 f"panel false_pass_rate {self.panel_false_pass_rate:.3f} near one: the "
                 f"panel passes almost everything the humans failed"
             )
-        if self.unanimity_rate >= 0.90:
+        if self.voters > 1 and self.unanimity_rate >= 0.90:
             fired.append(
                 f"unanimity_rate {self.unanimity_rate:.3f} near total: the judges "
                 f"almost never disagree"
@@ -322,8 +332,8 @@ class CalibrationReport:
 
 
 # --------------------------------------------------------------------------- #
-# Builders. Input shapes are kept dumb on purpose: dicts keyed by tuples, so
-# the runner does not have to know what the calibration layer wants next.
+# Builders. Input shapes are kept dumb: dicts keyed by tuples, so the runner
+# does not have to know what the calibration layer wants next.
 # --------------------------------------------------------------------------- #
 
 
@@ -486,6 +496,7 @@ def measure_discrimination(
     unanimity_rate: float,
     panel_kappa: float = 0.0,
     panel_false_pass_rate: float = 0.0,
+    voters: int = 3,
 ) -> DiscriminationReport:
     """Count the cases that contribute no signal at all.
 
@@ -508,4 +519,5 @@ def measure_discrimination(
         unanimity_rate=unanimity_rate,
         panel_kappa=panel_kappa,
         panel_false_pass_rate=panel_false_pass_rate,
+        voters=voters,
     )

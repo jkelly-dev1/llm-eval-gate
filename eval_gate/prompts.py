@@ -15,6 +15,7 @@ different filesystems.
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -105,6 +106,10 @@ class PromptLibrary:
         return hashlib.sha256(joined.encode("utf-8")).hexdigest()
 
 
+#: The judge prompt every caller uses unless it names another version.
+JUDGE_PROMPT_VERSION = "v2"
+
+
 def render_judge_user_prompt(
     *,
     case_id: str,
@@ -113,6 +118,7 @@ def render_judge_user_prompt(
     source: str,
     answer: str,
     attempt: int,
+    judge_prompt_version: str = JUDGE_PROMPT_VERSION,
 ) -> str:
     """Render the user half of a judge call.
 
@@ -128,15 +134,38 @@ def render_judge_user_prompt(
     react to it. That makes the self consistency machinery exercisable offline
     while keeping every run reproducible: repeat 2 of case gc-013 is always the
     same call with the same answer.
+
+    From judge.v2 on, the answer is fenced. It is model output, and under v1 it
+    followed a bare "CANDIDATE ANSWER:" label, so an answer holding a line such
+    as "SOURCE:" made the block boundaries ambiguous to the judges and to the
+    offline parser. v2 puts it between <candidate_answer> tags, rewrites any
+    such tag inside it so it cannot close the block early, and its system
+    prompt says the tagged text is data to be graded. v1 still renders as it
+    always did, so a run under v1 reproduces.
     """
-    return (
+    head = (
         f"CASE_ID: {case_id}\n"
         f"SUT_VERSION: {sut_version}\n"
         f"ATTEMPT: {attempt}\n"
         f"\nQUESTION:\n{question.strip()}\n"
         f"\nSOURCE:\n{source.strip()}\n"
-        f"\nCANDIDATE ANSWER:\n{answer.strip()}\n"
     )
+    if judge_prompt_version == "v1":
+        return head + f"\nCANDIDATE ANSWER:\n{answer.strip()}\n"
+    return (head + f"\nCANDIDATE ANSWER:\n<candidate_answer>\n"
+            f"{neutralize_answer_tags(answer.strip())}\n</candidate_answer>\n")
+
+
+_ANSWER_TAG = re.compile(r"<(\s*/?\s*)(candidate_answer)", re.IGNORECASE)
+
+
+def neutralize_answer_tags(answer: str) -> str:
+    """Rewrite any candidate_answer tag inside an answer as inert text.
+
+    "</candidate_answer>" becomes "&lt;/candidate_answer", which reads the same
+    to a person and can no longer end the fenced block.
+    """
+    return _ANSWER_TAG.sub(lambda m: "&lt;" + m.group(1) + m.group(2), answer)
 
 
 JUDGE_SCHEMA = {

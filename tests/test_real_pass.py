@@ -463,7 +463,7 @@ def test_nothing_the_real_pass_measures_can_reach_a_gate_decision(
 def test_the_demo_exit_code_is_the_same_with_the_real_pass_running_as_without_it(
     demo_run, fake_real_panel
 ):
-    """The end to end statement of the property, on the integer CI actually reads.
+    """The whole-pipeline statement of the property, on the integer CI actually reads.
 
     The same demo is run twice: once offline, where the section is skipped, and once
     against a live looking panel with a judge that raises on four cases. The exit

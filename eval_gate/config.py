@@ -48,9 +48,9 @@ class Settings(BaseSettings):
     # correlation instead of assuming independence.
     anthropic_model_secondary: str = "claude-sonnet-5"
     # gpt-5.6-terra is the current third voting slot: 2.50/15.00 per MTok and a
-    # 1.05M context. Its input price matches gpt-4o's, so this is a model upgrade
-    # at no extra input cost. gpt-5 (1.25/10.00, 400K context) is cheaper on
-    # paper and is deliberately NOT the default: OpenAI's own docs mark it
+    # 1.05M context. Its input price matches gpt-4o's, so this is a model
+    # upgrade at no extra input cost. gpt-5 (1.25/10.00, 400K context) is
+    # cheaper on paper and is NOT the default: OpenAI's own docs mark it
     # superseded and recommend the GPT-5.6 line, and a gate should not be built
     # on a model the vendor has moved off.
     openai_model: str = "gpt-5.6-terra"
@@ -58,7 +58,10 @@ class Settings(BaseSettings):
     max_output_tokens: int = 1200
 
     def model_for(self, provider: str) -> str:
-        if self.agent_model:
+        # AGENT_MODEL names a model of AGENT_PROVIDER's vendor, so it applies to
+        # that vendor only. An OpenAI model name handed to the Anthropic client
+        # would fail on the first call.
+        if self.agent_model and provider == self.agent_provider:
             return self.agent_model
         return {
             "anthropic": self.anthropic_model,
@@ -104,7 +107,7 @@ class Settings(BaseSettings):
     # "prefix" (the whole set, by case id) or "discriminating" (only cases the two
     # sut versions are labeled differently on). A REDUCED pass wants the second:
     # the first eight cases by id all pass in both versions, so an 8 case prefix
-    # run measures kappa 1.000 for every judge and separates nothing. See
+    # run holds one label class (kappa undefined) and separates nothing. See
     # real_pass.discriminating_cases, which exists because that run was paid for.
     real_pass_case_selection: str = "prefix"
 

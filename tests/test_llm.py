@@ -15,7 +15,7 @@ would be vacuous while still printing confident figures.
 
 The third property is that the offline shadow bench is the size its configuration
 says. SHADOW_JUDGE_MODELS decides how many shadow judges a run builds, offline as
-well as online, and each one is a distinct behavior. A bench that quietly built two
+well as online, and each one is a distinct behavior. A bench that silently built two
 judges when none or four were configured would report shadow metrics for a bench
 nobody asked for, and shadow correlation numbers built from repeated behaviors
 would be a property of the fixture rather than of the judges.
@@ -135,8 +135,12 @@ def test_a_panel_with_both_credentials_is_not_flagged_as_degraded(stub_real_prov
     assert panel_degraded(panel) is False
 
 
-def test_the_shadow_bench_falls_back_to_mocks_without_a_credential(settings: Settings):
-    shadow = get_shadow_judges(settings)
+def test_the_shadow_bench_falls_back_to_mocks_without_a_credential():
+    # A real provider is named, so the provider check passes and the missing
+    # OpenAI credential is the only thing keeping the bench offline.
+    named = Settings(agent_provider="anthropic", anthropic_api_key="sk-ant-test",
+                     openai_api_key=None)
+    shadow = get_shadow_judges(named)
     assert [judge.name for judge in shadow] == ["mock-verbosity", "mock-literalist"]
     assert all(is_mock(judge) for judge in shadow)
 
@@ -300,11 +304,11 @@ def test_every_offline_shadow_judge_is_a_genuinely_distinct_behavior(
         assert_shadow_behaviors_are_distinct(shadow_mock_judges(3), golden_set, library)
 
 
-def test_the_panel_needs_the_name_and_the_credential_not_either_alone():
+def test_the_panel_needs_the_name_and_the_credential_not_either_alone(stub_real_providers):
     """The same iron rule as `get_provider`, asserted on `get_panel`'s own copy.
 
     `get_panel` and `get_shadow_judges` re-implement the provider-selection rule
-    rather than calling `get_provider`, so the tests above, which all exercise
+    instead of calling `get_provider`, so the tests above, which all exercise
     `get_provider`, say nothing about them. Two copies of a safety rule with one
     under test is one copy under test.
 
@@ -313,7 +317,9 @@ def test_the_panel_needs_the_name_and_the_credential_not_either_alone():
     paid slots.
 
     Mutation check, executed against the selector: drop the `and anthropic_key`
-    clause, or the `and openai_key` clause, or the provider check in
+    clause, the `and openai_key` clause, the third slot's `if openai_key`, the
+    second vendor's `if anthropic_key` under an OpenAI primary, the shadow
+    bench's `openai_api_key` clause, or the provider check in
     `get_shadow_judges`, and this goes red.
     """
     named_but_uncredentialed = Settings(agent_provider="anthropic", anthropic_api_key=None)
@@ -333,3 +339,35 @@ def test_the_panel_needs_the_name_and_the_credential_not_either_alone():
     cross_matched = Settings(agent_provider="openai", anthropic_api_key="sk-ant-test")
     for slot in get_panel(cross_matched):
         assert is_mock(slot), f"{slot.model} was selected by the other vendor's key"
+
+    openai_only = Settings(agent_provider="openai", openai_api_key="sk-openai-test",
+                           anthropic_api_key=None)
+    for slot in get_panel(openai_only)[1:]:
+        assert is_mock(slot), f"{slot.model} was built with no Anthropic credential"
+
+    anthropic_only = Settings(agent_provider="anthropic",
+                              anthropic_api_key="sk-ant-test", openai_api_key=None)
+    assert is_mock(get_panel(anthropic_only)[2]), "third slot built with no OpenAI key"
+    for slot in get_shadow_judges(anthropic_only):
+        assert is_mock(slot), f"{slot.model} joined the shadow bench with no key"
+
+
+def test_agent_model_replaces_only_the_primary_vendors_first_slot(stub_real_providers):
+    """AGENT_MODEL names a model of AGENT_PROVIDER's vendor. Applied to every
+    slot it sent an OpenAI model name to the Anthropic client, and with an
+    Anthropic primary it made the first two slots the same model."""
+    keys = dict(anthropic_api_key="sk-ant-test", openai_api_key="sk-openai-test")
+
+    openai_first = get_panel(Settings(agent_provider="openai",
+                                      agent_model="gpt-5.6-luna", **keys))
+    assert [(j.name, j.model) for j in openai_first] == [
+        ("openai", "gpt-5.6-luna"),
+        ("anthropic", Settings().anthropic_model),
+        ("anthropic", Settings().anthropic_model_secondary)]
+
+    anthropic_first = get_panel(Settings(agent_provider="anthropic",
+                                         agent_model="claude-opus-5-x", **keys))
+    assert [(j.name, j.model) for j in anthropic_first] == [
+        ("anthropic", "claude-opus-5-x"),
+        ("anthropic", Settings().anthropic_model_secondary),
+        ("openai", Settings().openai_model)]

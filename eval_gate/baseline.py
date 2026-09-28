@@ -55,6 +55,10 @@ What is recorded, and why each field is there
                        is not comparable to one from an honest panel.
   repeats              how many repeats produced it, because repeat 1 is the
                        reported run and the noise floor depends on this.
+  panel_size           how many voting judges produced it. One judge's pass rate
+                       is not a three judge majority's, and panel_mode alone does
+                       not say how many judges voted. A file without the field
+                       is reported as not comparable rather than assumed.
   measured_pass_rate   the number the comparison actually uses.
   recorded_at          when. Not frozen, and not part of the comparison.
   run_id               which run produced it, so the audit trail and the registry
@@ -79,9 +83,11 @@ class BaselineRecord:
     measured_pass_rate: float
     recorded_at: str
     run_id: str
+    panel_size: int | None = None
 
     def _differences(
-        self, *, prompt_version_hash: str, panel_mode: str, repeats: int
+        self, *, prompt_version_hash: str, panel_mode: str, repeats: int,
+        panel_size: int,
     ) -> list[tuple[str, str]]:
         """Each field that differs, paired with the explanation of why it matters.
 
@@ -109,10 +115,23 @@ class BaselineRecord:
                 "repeats",
                 f"baseline used {self.repeats} repeats, this run used {repeats}",
             ))
+        if self.panel_size is None:
+            problems.append((
+                "panel_size",
+                f"baseline does not record how many judges measured it, this run "
+                f"used {panel_size}; re-record it with --record-baseline",
+            ))
+        elif panel_size != self.panel_size:
+            problems.append((
+                "panel_size",
+                f"baseline was measured by {self.panel_size} judge(s), this run "
+                f"used {panel_size}; one judge's pass rate is not a majority's",
+            ))
         return problems
 
     def comparable_with(
-        self, *, prompt_version_hash: str, panel_mode: str, repeats: int
+        self, *, prompt_version_hash: str, panel_mode: str, repeats: int,
+        panel_size: int,
     ) -> list[str]:
         """Reasons this baseline is not comparable to the run in hand.
 
@@ -125,10 +144,12 @@ class BaselineRecord:
             prompt_version_hash=prompt_version_hash,
             panel_mode=panel_mode,
             repeats=repeats,
+            panel_size=panel_size,
         )]
 
     def differing_fields(
-        self, *, prompt_version_hash: str, panel_mode: str, repeats: int
+        self, *, prompt_version_hash: str, panel_mode: str, repeats: int,
+        panel_size: int,
     ) -> list[str]:
         """Which recorded fields differ, by name.
 
@@ -143,6 +164,7 @@ class BaselineRecord:
             prompt_version_hash=prompt_version_hash,
             panel_mode=panel_mode,
             repeats=repeats,
+            panel_size=panel_size,
         )]
 
 
@@ -150,8 +172,8 @@ def load_baseline(path: str | Path) -> BaselineRecord | None:
     """Read the committed baseline, or None when there is not one yet.
 
     None is a real answer. A repository with no baseline has nothing to compare a
-    candidate against, and the gate says so and fails rather than inventing a
-    comparison or quietly passing.
+    candidate against, and the gate says so and fails instead of inventing a
+    comparison or silently passing.
     """
     location = Path(path)
     if not location.exists():
@@ -165,6 +187,8 @@ def load_baseline(path: str | Path) -> BaselineRecord | None:
         measured_pass_rate=float(payload["measured_pass_rate"]),
         recorded_at=str(payload["recorded_at"]),
         run_id=str(payload["run_id"]),
+        panel_size=(int(payload["panel_size"])
+                    if payload.get("panel_size") is not None else None),
     )
 
 

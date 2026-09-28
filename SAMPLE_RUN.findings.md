@@ -18,10 +18,14 @@ Honest limit 2 applies to every number below. Kappa here is measured over 60
 judged units per judge (30 cases x 2 sut versions) with no confidence interval,
 and the reduced run's over 16. Read the leading digit.
 
+These runs used `judge.v2`, which fences the candidate answer in
+`<candidate_answer>` tags; the captures before 2026-09-26 used `judge.v1`. On
+samples this small no change between the two can be put down to the fence.
+
 ### 1. The panel lost to a single judge, and this time the mechanism is visible
 
-Panel kappa 0.857 against `claude-sonnet-5` alone at 0.892, a gap of -0.034. The
-panel cost $1.3089 against $0.8130 for the first slot on its own, a 1.61x
+Panel kappa 0.857 against `claude-sonnet-5` alone at 0.963, a gap of -0.106. The
+panel cost $1.3723 against $0.8494 for the first slot on its own, a 1.62x
 multiplier for a worse answer. This harness prints the finding itself, in
 capitals, because a negative number in a table is easy to skim past.
 
@@ -38,13 +42,13 @@ when one judge's errors are a subset of the other's. Error counts say the
 same thing directly:
 
 ```
-claude-opus-5    4 errors / 60 units      opus + sonnet   joint 3 = all of sonnet's
-claude-sonnet-5  3 errors / 60 units      opus + terra    joint 4 = all of both
-gpt-5.6-terra    4 errors / 60 units      sonnet + terra  joint 3 = all of sonnet's
+claude-opus-5    4 errors / 60 units      opus + sonnet   joint 1 = all of sonnet's
+claude-sonnet-5  1 error  / 60 units      opus + terra    joint 4 = all of both
+gpt-5.6-terra    4 errors / 60 units      sonnet + terra  joint 1 = all of sonnet's
 ```
 
 `claude-opus-5` and `gpt-5.6-terra` were wrong on identically the same four
-units, and `claude-sonnet-5` got one of those four right that both others
+units, and `claude-sonnet-5` got three of those four right that both others
 missed. There is no unit on which any judge is wrong alone.
 
 This is the mechanism behind finding 1. A majority vote can only correct an
@@ -56,17 +60,18 @@ vendors, two model families, one set of mistakes.
 
 CAVEAT, and it is load bearing: this is four error units out of sixty. The
 nesting is exact, but it is exact over a very small number of errors, and a
-fifth error landing anywhere would change the ratio. The previous capture read
-the same 15.00 as "a small-sample ceiling rather than a measurement", which was
-half right: it is a real structural measurement, taken on a sample too small to
-settle it. Do not quote finding 2 without this paragraph.
+fifth error landing anywhere would change the ratio. The 15.00 is a real
+structural measurement, taken on a sample too small to settle it. Do not quote
+finding 2 without this paragraph.
 
-### 3. The cheapest judge tied the most expensive, exactly
+### 3. A judge at a quarter of the price tied the most expensive, exactly
 
-`gpt-5.6-luna` in a non voting shadow slot scored kappa 0.857 at $0.0952 per
-sweep. `claude-opus-5` scored kappa 0.857 at $0.8130: 8.5x the price for the
-same number, gap +0.000. The best judge in the run was neither: the mid-priced
-`claude-sonnet-5` at 0.892 for $0.3085.
+`gpt-5.6-terra`, a voting judge, scored kappa 0.857 at $0.2023 per sweep.
+`claude-opus-5` scored kappa 0.857 at $0.8494: 4.2x the price for the same
+number, gap +0.000. The cheapest judge of all, `gpt-5.6-luna` in a non voting
+shadow slot, scored 0.824 at $0.1016, and the harness reports that +0.034 gap
+to the dearest as a real one against a measured noise floor of 0.000. The best
+judge in the run was neither: the mid-priced `claude-sonnet-5` at 0.963 for $0.3206.
 
 The offline mock panel ranks these models in almost the opposite order:
 `mock-verbosity`, which stands in for `gpt-5.6-luna`, is the worst judge in the
@@ -84,7 +89,7 @@ impossible to configure away here. `claude-opus-5` and `claude-sonnet-5` reject
 `temperature`, `top_p` and `top_k` with HTTP 400, so the number had to be
 measured.
 
-The shadow judges did flip: `gpt-5.6-luna` at 0.062 and `gpt-4o` at 0.125. That
+One shadow judge did flip: `gpt-4o` at 0.250, and `gpt-5.6-luna` at 0.000. That
 is its own argument for the shadow bench not voting.
 
 The obvious objection to a 0.000 floor is that the full run measures consistency
@@ -98,15 +103,15 @@ selection mode that does not exist yet.
 
 ### 5. The cost estimate undercounts, asymmetrically, and reproducibly
 
-The offline `characters/4` approximation was 2.35x low on the Anthropic prompts
-and accurate to 0.94-0.95 on OpenAI. Measured $1.5576 against an estimated
-$0.9490. The ratio quoted here and below is the token ratio, 1.51. The ratio of
-those two dollar figures is 1.64, because the estimate and the measurement do
+The offline `characters/4` approximation was 2.19x low on the Anthropic prompts
+and accurate to 0.92-0.93 on OpenAI. Measured $1.6452 against an estimated
+$1.0588. The ratio quoted here and below is the token ratio, 1.43. The ratio of
+those two dollar figures is 1.55, because the estimate and the measurement do
 not share a per-model price mix.
 
 A reduced run reproduced all three figures on a different sample and a
-different set of cases: 2.37x Anthropic, 0.95 OpenAI, 1.51 total, against a
-measured $0.5320. Two runs, same ratios. This is why the offline dollar figure is
+different set of cases: 2.20x Anthropic, 0.93 OpenAI, 1.44 total, against a
+measured $0.5633. Two runs, same ratios. This is why the offline dollar figure is
 labeled an approximation everywhere it appears and is never quoted as a token
 count.
 
@@ -114,10 +119,12 @@ count.
 
 The first attempt at a reduced sweep bought `gc-001..gc-008`, the first eight
 cases by id. Every judge scored kappa 1.000 and both sut versions passed 100% of
-them, because those eight are grounded cases that pass in both versions: the
-subset contained nothing the two versions disagree about. That is this project's
-own `cases_that_never_discriminate` warning, arriving as a paid capture, and it
-is the reason `--real-case-selection discriminating` now exists and is tested.
+them. That kappa is undefined, because every label and every verdict was pass
+(the code reports 0.000 for it), and the eight are grounded cases that pass in
+both versions: the subset contained nothing the two versions disagree about.
+That is this project's own `cases_that_never_discriminate` warning, arriving as
+a paid capture, and the reason `--real-case-selection discriminating` now exists
+and is tested.
 
 The selection works. The subset it buys separates the versions cleanly, 0.750 to
 0.250, which is exactly the human labels for those eight cases.

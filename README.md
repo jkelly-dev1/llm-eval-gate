@@ -23,9 +23,9 @@ models (Anthropic and OpenAI) with two environment variables. Both real model
 captures are in [SAMPLE_RUN.md](SAMPLE_RUN.md), verbatim: 460 live judge calls
 across `claude-opus-5`, `claude-sonnet-5` and `gpt-5.6-terra` with `gpt-5.6-luna`
 and `gpt-4o` in shadow, plus a smaller second run. They found that the panel's
-three judges made completely nested errors across two vendors, that the
-cheapest judge tied the most expensive, and that this repo's own reduced-sweep
-advice was wrong; all three are written up with their caveats.
+three judges made completely nested errors across two vendors, that a judge
+at a quarter of the price tied the most expensive, and that this repo's own
+reduced-sweep advice was wrong; all three are written up with their caveats.
 
 Unless a number is explicitly labeled as coming from those captures, every
 figure in this README is from the offline mock panel, and no offline number
@@ -41,11 +41,11 @@ this judge agree with a human, does it agree with itself twice in a row, do thre
 judges fail on the same cases, and is the threshold being enforced larger than
 the variance of the judges enforcing it.
 
-The failure mode is not a noisy gate. It is a quiet one. A judge that passes
-everything agrees with the humans 80% of the time on this deliberately skewed
-golden set, so a harness reporting accuracy reports 0.800 and looks healthy while
-being structurally incapable of blocking anything. Cohen's kappa scores the same
-judge 0.000. That gap is the whole project.
+The failure mode is not a noisy gate. It is a silent one. A judge that passes
+everything agrees with the humans 80% of the time on sut.v1's labels in this
+deliberately skewed golden set, so a harness reporting accuracy reports 0.800 and
+looks healthy while being structurally incapable of blocking anything. Cohen's
+kappa scores the same judge 0.000. That gap is the whole project.
 
 Five controls, all implemented here:
 
@@ -57,15 +57,15 @@ Five controls, all implemented here:
   `claude-opus-5` and `claude-sonnet-5` reject `temperature` (HTTP 400), so judge
   variance cannot be configured away and has to be measured. When the regression
   threshold sits inside that variance the gate refuses to produce a verdict
-  rather than producing one it cannot support.
-- Pairwise error correlation. Three judges cost 3x the CALLS, and 1.94x the
+  instead of producing one it cannot support.
+- Pairwise error correlation. Three judges cost 3x the CALLS, and 1.93x the
   spend. If they are wrong on the same cases, majority voting bought less than
   it appears to, and the report says so with a ratio against what independence
   would predict.
 - **Vacuous gate detection.** A golden set whose cases give both versions the
-  same verdict is not a gate. `cases_that_never_discriminate`, panel kappa and
-  panel false pass rate are ceilings the panel can fail, and a named suspicion
-  line says which signal fired.
+  same verdict is not a gate. `cases_that_never_discriminate` and panel false
+  pass rate are ceilings the panel can fail, panel kappa is reported beside
+  them, and a named suspicion line says which signal fired.
 - **A shadow bench and a cost table.** Two cheap judges are scored exactly like
   voting judges and are excluded from the vote, from unanimity, from split
   detection and from every gate threshold, so "would a cheaper judge have agreed
@@ -159,10 +159,12 @@ noise floor 0.100, measured over 3 repeats per case
 - An unreadable judge is an abstention, never a fail. Coercing a parse failure
   into "fail" would attribute the harness's own bug to the system under test and
   block a release on evidence that does not exist.
-- **The gate refuses twice, for two different reasons, and says which.** Once
-  when the threshold is inside the noise floor, once when the committed baseline
-  does not measure what this run measured. `exit_driver` names the condition, so a
-  red build is diagnosable rather than merely red.
+- **The gate refuses rather than guesses, and says why.** It refuses when the
+  threshold is inside the noise floor, when fewer than two repeats leave the
+  noise floor unmeasured, when the candidate was not measured by this run, and
+  when the committed baseline does not measure what this run measured.
+  `exit_driver` names the condition, so a red build is diagnosable rather than
+  merely red.
 
 ## Claims backed by tests
 
@@ -183,6 +185,7 @@ noise floor 0.100, measured over 3 repeats per case
 | Two of three votes carries the panel, and the record keeps the disagreement it resolved | `tests/test_panel.py::test_two_of_three_votes_carries_the_panel`, `::test_the_panel_record_keeps_the_disagreement_it_resolved`, `::test_the_panel_record_carries_the_case_it_judged` |
 | An abstaining judge does not vote, and a panel reduced to one voter abstains instead of reporting a verdict | `tests/test_panel.py::test_an_abstaining_judge_does_not_vote`, `::test_fewer_than_two_voting_judges_abstains_the_panel` |
 | No judges ran is an error, not a verdict | `tests/test_panel.py::test_an_empty_panel_is_an_error_rather_than_a_verdict` |
+| The candidate answer is data: from `judge.v2` it is fenced in `<candidate_answer>` tags, and an answer cannot forge the source or the question, or close its own fence | `tests/test_answer_fence.py::test_an_answer_cannot_replace_the_source_or_the_question` (mutation-checked: read the labeled blocks from the whole prompt and it fails), `::test_an_answer_cannot_close_its_own_fence` (mutation-checked: leave a tag inside the answer as written and it fails), `::test_the_judge_prompt_says_the_fenced_text_is_data`, `::test_judge_v1_still_renders_exactly_as_it_did` |
 | Fenced or prose wrapped judge output still parses | `tests/test_judge.py::test_a_verdict_wrapped_in_code_fences_is_still_parsed`, `::test_a_verdict_with_prose_before_the_json_is_still_parsed` |
 | Unreadable judge output abstains instead of raising, and a verdict outside the contract is not coerced toward pass or fail | `tests/test_judge.py::test_unparseable_output_becomes_an_abstention_rather_than_an_exception` (mutation-checked: swap the tolerant parser for a strict `json.loads` and the judge call raises), `::test_a_verdict_outside_the_contract_becomes_an_abstention` |
 | A refusal or a content filtered response is an abstention, not a crash, in either vendor's spelling | `tests/test_judge.py::test_a_refusal_stop_reason_becomes_an_abstention`, `::test_a_content_filtered_openai_response_becomes_an_abstention` |
@@ -204,7 +207,7 @@ noise floor 0.100, measured over 3 repeats per case
 | A price whose scheduled increase was CANCELED is fixed, not treated as expiring | `tests/test_cost.py::test_the_sonnet_price_is_fixed_because_the_scheduled_increase_was_canceled` (mutation-checked: reintroduce a date comparison in `sonnet_intro_active`, or restore the superseded list price, and it fails) |
 | A missing baseline record refuses rather than allowing against a vacuous 0.000 | `tests/test_gate.py::test_a_missing_baseline_record_refuses_and_exits_one` (mutation-checked: the flag, the failure row and the exit driver each fail it on their own) |
 | The gate forces the mock even with both vendor keys present and a real provider named | `tests/test_gate.py::test_the_gate_forces_the_mock_even_with_both_vendor_keys_present` (mutation-checked: drop the `agent_provider` override and it fails) |
-| Panel and shadow selection need the provider NAME and the credential, not either alone | `tests/test_llm.py::test_the_panel_needs_the_name_and_the_credential_not_either_alone` (mutation-checked: drop any one of the three credential clauses and it fails) |
+| Panel and shadow selection need the provider NAME and the credential, not either alone | `tests/test_llm.py::test_the_panel_needs_the_name_and_the_credential_not_either_alone` (mutation-checked: drop any one of the five credential clauses, or the shadow bench's provider check, and it fails) |
 | A record spliced in from another log, valid in itself, breaks the chain | `tests/test_audit.py::test_a_record_spliced_from_another_log_breaks_the_chain` (mutation-checked: delete the `prev_hash` comparison and only this one fails) |
 | Every readable-but-unusable judge shape abstains and is never coerced toward a verdict | `tests/test_judge.py::test_every_unreadable_shape_abstains_rather_than_being_coerced` (mutation-checked: return `pass` from the unparseable branch and it fails) |
 | Pricing more judges than there are slots raises instead of wrapping around and billing the wrong models | `tests/test_cost.py::test_pricing_more_judges_than_slots_is_an_error_not_a_wraparound` (mutation-checked: restore the modulo index in `priced_as_real` and it fails) |
@@ -213,7 +216,7 @@ noise floor 0.100, measured over 3 repeats per case
 | The run id is derived from what the run is rather than from a clock | `tests/test_determinism.py::test_the_run_id_is_derived_from_the_run_rather_than_from_a_clock` |
 | Two runs produce the same audit trail apart from its timestamps, which are excluded rather than frozen | `tests/test_determinism.py::test_two_offline_runs_produce_the_same_audit_trail_apart_from_its_timestamps`, `tests/test_audit.py::test_the_audit_hash_is_stable_across_key_order` |
 | The golden set skew the whole kappa argument depends on cannot be quietly balanced away | `tests/test_determinism.py::test_the_golden_set_label_distribution_is_deliberately_skewed` |
-| Editing, reordering or removing an audit record is detectable | `tests/test_audit.py::test_the_audit_chain_detects_a_tampered_record` (mutation-checked: drop `prev_hash` from the hashed payload and an excised record goes undetected) |
+| Editing, reordering or removing an audit record that has a successor is detectable by anyone who cannot recompute the chain. The hash is unkeyed and the head hash is not stored elsewhere, so removing the last record, or rewriting a record and re-hashing the rest, is not detected | `tests/test_audit.py::test_the_audit_chain_detects_a_tampered_record` (mutation-checked: drop `prev_hash` from the hashed payload and an excised record goes undetected) |
 | A CI gate run writes no records into the committed audit directory | `tests/test_gate.py::test_the_gate_writes_no_audit_records_into_the_committed_audit_directory` |
 | A prompt version is identified by the hash of its body, so editing it in place does not inherit the old approval | `tests/test_registry.py::test_a_prompt_version_is_identified_by_its_content_hash`, `::test_editing_a_prompt_produces_a_new_version` |
 | A rollback is appended to the history rather than popped from it, and is itself a recorded decision with an actor and a reason | `tests/test_registry.py::test_a_rollback_is_recorded_rather_than_erased` (mutation-checked: restore `history.pop()` in `PromptRegistry.rollback` and it fails), `::test_rollback_restores_the_previous_active_version` |
@@ -240,7 +243,7 @@ Requires Python 3.11 or newer. CI runs 3.11, 3.12, and 3.13.
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
 
-pytest -q                          # 103 tests, fully offline
+pytest -q                          # 131 tests, fully offline
 python -m eval_gate.evals.gate     # the CI eval gate
 python scripts/run_demo.py         # end to end demo over the whole golden set
 ```
@@ -256,7 +259,8 @@ python -m eval_gate.evals.gate --threshold 0.05
 ```
 
 `SAMPLE_RUN.md` holds a verbatim capture of the demo and of all five gate
-invocations with their exit codes.
+invocations with their exit codes. `python scripts/check_sample_run.py` re-runs
+those six and exits 1 if the file no longer matches them; CI runs it.
 
 ## How a run flows
 
@@ -282,7 +286,9 @@ golden set (30 synthetic cases, human labeled, 24 pass / 6 fail on sut.v1)
         |                cases_that_never_discriminate, unanimity, cost
         v
   refuse?                threshold inside the measured noise floor,  --> NO DECISION
-        |                or a baseline that measured something else      exit 1
+        |                fewer than 2 repeats (floor not measured),      exit 1
+        |                a candidate this run did not measure,
+        |                or a baseline that measured something else
         v
   regression?            candidate pass rate vs the COMMITTED baseline --> BLOCK
         |                record in baseline.json                          exit 1
@@ -300,7 +306,7 @@ Two things about that shape are deliberate. The comparison is against a file in
 version control rather than against sut.v1 measured in the same run: the golden
 set carries a planted regression, so an in run comparison would report one every
 time and CI would be permanently red, while comparing the active version against
-itself is a gate that can never fail. And the exit code follows both
+itself is a gate that cannot fail. And the exit code follows both
 questions, because printing `deployment_decision BLOCK` and then exiting 0
 sends CI green while the harness says block.
 
@@ -339,14 +345,15 @@ that count plus a dollar estimate before it makes the first call;
 `--real-cases`, `--real-repeat-cases` and `--real-repeats` size it down.
 
 A reduced sweep needs `--real-case-selection discriminating`, and that flag
-exists because a paid run proved it. The first eight cases by id are grounded
-and pass in both sut versions, so an 8 case prefix measured kappa 1.000 for every
-judge and a 100% pass rate on both versions: a capture of the project's own
-`cases_that_never_discriminate` warning rather than a result. The discriminating
-selection takes only cases the two versions are labeled differently on, and
-alternates the two directions so the subset holds both a regression and a fix
-instead of eight failures pointing the same way. A judge that answers "fail" to
-everything cannot score well on it.
+exists because a paid run proved it. The first eight cases by id are grounded and
+pass in both sut versions, so an 8 case prefix held only pass labels (kappa is
+undefined there; that run printed 1.000 for every judge, and the code reports
+0.000 for it) and a 100% pass rate on both versions: a capture of the project's
+own `cases_that_never_discriminate` warning rather than a result. The
+discriminating selection takes only cases the two versions are labeled
+differently on, and alternates the two directions so the subset holds both a
+regression and a fix instead of eight failures pointing the same way. A judge
+that answers "fail" to everything cannot score well on it.
 
 A judge that errors, refuses or times out is recorded as an abstention with
 the reason and the pass carries on, because aborting call 401 of 460 throws
@@ -358,7 +365,7 @@ The voting slots default to `claude-opus-5`, `claude-sonnet-5` and
 `gpt-5.6-terra`; the shadow slots to `gpt-5.6-luna` and `gpt-4o`. Two Anthropic
 slots and one OpenAI slot is a genuine three model, two vendor panel only when
 both keys are present; with one vendor's key the third slot falls back to a mock,
-and the `panel degraded` header says so and names the slot rather than printing a
+and the `panel degraded` header says so and names the slot instead of printing a
 boolean that reads the same for an all real panel and an all mock one. Two models from
 one vendor are expected to correlate, which is exactly why the report measures
 pairwise error correlation instead of assuming independence. `claude-opus-5` and
@@ -368,31 +375,32 @@ measured instead.
 
 ### What the real runs actually found
 
-Two captures, 460 and 160 live calls, $1.5576 and $0.5320 measured. Full output
-and the caveat on each finding are in
-[SAMPLE_RUN.md](SAMPLE_RUN.md#what-the-real-model-runs-found); the short version
-is that most of what they found is a negative result about this design:
+Two captures, 460 and 160 live calls, $1.6452 and $0.5633 measured, both
+under `judge.v2`. Full output and the caveat on each finding are in
+[SAMPLE_RUN.md](SAMPLE_RUN.md#what-the-real-model-runs-found). In brief, most of
+what they found is a negative result about this design:
 
 - **The three voting judges' errors were completely nested, across two
   vendors.** `claude-opus-5` and `gpt-5.6-terra` were wrong on identically the
-  same four of 60 units, and `claude-sonnet-5`'s three errors were a subset of
-  those four. No judge was ever wrong alone. Majority voting cannot correct an
-  error all three make. The panel scored kappa 0.857, exactly its two weaker
-  members', and lost to `claude-sonnet-5` alone at 0.892 while costing 1.61x.
+  same four of 60 units, and `claude-sonnet-5`'s one error was one of those
+  four. No judge was ever wrong alone. Majority voting cannot correct an error
+  all three make. The panel scored kappa 0.857, exactly its two weaker
+  members', and lost to `claude-sonnet-5` alone at 0.963 while costing 1.62x.
   Read it with the caveat: exact nesting, over four errors.
-- The cheapest judge tied the most expensive. `gpt-5.6-luna` at $0.0952 per
-  sweep scored the same kappa as `claude-opus-5` at $0.8130, and the best judge
-  was the mid-priced `claude-sonnet-5`. The offline mock bench ranks those
-  models in nearly the opposite order, which is the clearest possible
-  demonstration that no offline number here is evidence about a real model.
+- A judge at a quarter of the price tied the most expensive. `gpt-5.6-terra`
+  at $0.2023 per sweep scored the same kappa as `claude-opus-5` at $0.8494,
+  and the best judge was the mid-priced `claude-sonnet-5`. The offline mock
+  bench ranks those models in nearly the opposite order, which is the clearest
+  possible demonstration that no offline number here is evidence about a real
+  model.
 - **The measured noise floor was 0.000** on both runs, including on a subset
   chosen to be harder, so the flip rate the gate refuses to go below is a real
-  measurement rather than an artifact of easy cases. The non voting shadows did
-  flip, up to 0.125.
-- **`characters/4` undercounts Anthropic prompts by 2.35x** and is accurate on
-  OpenAI, for a total estimate to measured ratio of 1.51 reproduced across both
-  runs. That is why the offline dollar figure is labeled an approximation
-  everywhere it appears.
+  measurement rather than an artifact of easy cases. One non voting shadow did
+  flip, at 0.250.
+- **`characters/4` undercounts Anthropic prompts by 2.19x** and is accurate on
+  OpenAI, for a total estimate to measured ratio of 1.43, reproduced as 1.44 on
+  the second run. That is why the offline dollar figure is labeled an
+  approximation everywhere it appears.
 
 Every model id and price in `eval_gate/cost.py` was checked against the vendor's
 own documentation and against the account's model list (`client.models.list()`
@@ -401,7 +409,7 @@ chosen, four aggregator pages returned four mutually contradictory price tables,
 and the one that was wrong about prices was right about the naming. That is the
 trap: a source which is neither reliably right nor reliably wrong is not evidence
 in either direction. An account's own model list cannot be out of date or SEO
-poisoned, so it is the authority here. `price_for` raises rather than defaulting,
+poisoned, so it is the authority here. `price_for` raises instead of defaulting,
 so a model that is renamed or added without a price entry fails loudly instead of
 being reported as free.
 
@@ -424,7 +432,7 @@ being reported as free.
    30 cases that interval is wide. The headline cost finding, that
    `claude-sonnet-5` at 0.842 is within noise of `claude-opus-5` at 0.857, rests
    on a 0.015 gap an interval would very likely swallow whole. The report does
-   compare that gap against the measured noise floor rather than treating it as
+   compare that gap against the measured noise floor instead of treating it as
    meaningful, which is the honest half; quoting three decimals as if they were
    resolved would be the dishonest half. Read the leading digit. Worth doing:
    bootstrap an interval and print kappa as one. Until then, treat any kappa
@@ -477,7 +485,7 @@ being reported as free.
 9. The shadow bench and the pricing slots disagree about size. The offline
    shadow bench supports up to four distinct behaviors; the real shadow slots
    are a hardcoded pair. Configuring four shadow judges therefore raises
-   `PricingSlotMismatch` rather than mispricing them silently. That is the
+   `PricingSlotMismatch` instead of mispricing them silently. That is the
    intended loud failure and it is still an inconsistency: the two limits should
    be the same number.
 10. **Offline dollar figures are approximations.** Offline token counts are

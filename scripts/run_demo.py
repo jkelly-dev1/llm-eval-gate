@@ -19,7 +19,7 @@ The narrative is the argument the project makes, in order:
      Both miscalibrated runs are gated against the baseline recorded under THEIR
      panel, because a baseline names the panel that measured it. The same run
      against the honest panel's baseline is shown too, and there the gate refuses
-     to produce a deployment decision at all rather than comparing two numbers it
+     to produce a deployment decision at all instead of comparing two numbers it
      has just called incomparable.
   9. The non voting shadow bench, and the proof that turning it off changes
      nothing about the gate outcome.
@@ -120,7 +120,7 @@ def run_mode(
     candidate: str = "sut.v1",
     baseline=None,
 ):
-    """Run one offline panel configuration end to end and return its verdict."""
+    """Run one offline panel configuration through the whole pipeline and return its verdict."""
     overrides = {
         "judge_panel_mode": mode,
         "agent_provider": "mock",
@@ -176,7 +176,7 @@ def summarize(label: str, report, decision) -> None:
 def build_parser() -> argparse.ArgumentParser:
     """Flags for the paid section only. Everything else is fixed by design.
 
-    The offline sections take no options on purpose: they are the reproducible
+    The offline sections take no options: they are the reproducible
     half, and a demo whose offline output depended on flags would make the capture
     in SAMPLE_RUN.md one run among many rather than the run.
     """
@@ -223,7 +223,7 @@ def build_parser() -> argparse.ArgumentParser:
 def real_model_section(settings, library, panel, shadow) -> None:
     """Section 11. Runs only against a live provider, and never gates.
 
-    The mock branch prints rather than returning silently, because an offline
+    The mock branch prints instead of returning silently, because an offline
     capture with a hole in it invites the reader to assume the section ran. Its
     call count comes from the same PassPlan the paid run uses, so the figure an
     offline reader is quoted is the figure they would be billed for.

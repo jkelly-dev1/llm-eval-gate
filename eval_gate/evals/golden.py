@@ -14,7 +14,7 @@ answers were produced at eval time by the same mock that later judges them, a
 regression in the mock would move both sides at once and the gate would sit
 there measuring its own reflection.
 
-The label distribution, and why it is skewed on purpose
+The label distribution, and why it is skewed
 
   sut.v1 (baseline):   24 pass / 6 fail
   sut.v2 (candidate):  16 pass / 14 fail
@@ -23,7 +23,7 @@ sut.v2 is GENUINELY WORSE by human label. That gap is the regression the gate
 exists to catch, and it is planted rather than hoped for, so a gate that has
 stopped catching it is provably broken rather than merely quiet.
 
-The distribution is deliberately NOT 50/50. On the baseline, 80% of cases pass,
+The distribution is NOT 50/50. On the baseline, 80% of cases pass,
 so a judge that passes everything scores 80% raw agreement and looks respectable
 while being useless. That is precisely what makes raw agreement misleading and
 Cohen's kappa necessary, and the skew is here so the project can demonstrate the

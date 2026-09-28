@@ -1,11 +1,11 @@
 """The tolerant parser, and why an unreadable judge is an abstention.
 
-A real model wraps its JSON in code fences or apologizes before it, no matter what
-the system prompt says. A judge that raises on that takes the whole eval run down
-with it, so the parser is deliberately tolerant. The subtler failure is the
-opposite one: a judge that coerces unreadable output into "fail" would attribute
-its own parse failure to the system under test, and the gate would then block a
-release on evidence that does not exist.
+A real model wraps its JSON in code fences or apologizes before it, no matter
+what the system prompt says. A judge that raises on that takes the whole eval
+run down with it, so the parser is tolerant. The subtler failure is the
+opposite one: a judge that coerces unreadable output into "fail" would
+attribute its own parse failure to the system under test, and the gate would
+then block a release on evidence that does not exist.
 
 So the property is two sided. Unreadable output becomes verdict="abstain" with
 raw_ok=False, and a refusal becomes an abstention too rather than a crash. An
@@ -77,7 +77,7 @@ def test_a_verdict_outside_the_contract_becomes_an_abstention():
     """Parsed JSON is not the same fact as a usable verdict.
 
     "affirmative" is readable and still not a verdict this system defines, so it
-    abstains with raw_ok=False rather than being coerced toward pass or fail.
+    abstains with raw_ok=False instead of being coerced toward pass or fail.
     """
     verdict, _criteria, reasons, raw_ok = parse_judge_response(
         json.dumps({"verdict": "affirmative", "criteria": {}, "reasons": []})
@@ -122,7 +122,7 @@ def test_an_abstention_from_a_broken_parse_carries_raw_ok_false(
     """A broken judge and a cautious judge must not look the same in the report.
 
     Both abstain. Only one of them means the harness has lost a measurement, and
-    raw_ok is what separates a rising abstention rate caused by a quietly broken
+    raw_ok is what separates a rising abstention rate caused by a silently broken
     judge from one caused by judges declining on genuinely ambiguous cases.
     """
     broken = judge_case(
@@ -193,3 +193,19 @@ def test_every_unreadable_shape_abstains_rather_than_being_coerced():
         assert raw_ok is False, f"{label}: reported as readable"
         assert criteria == {}, f"{label}: invented criteria"
         assert reasons, f"{label}: abstained without saying why"
+
+
+def test_the_first_complete_object_is_read_when_a_reply_carries_two():
+    """One span from the first "{" to the last "}" failed on a reply with two
+    objects, or a braced word in prose before the object, and abstained."""
+    from eval_gate.judge import parse_judge_response
+
+    two = '{"verdict": "pass", "criteria": {}, "reasons": []}\n{"verdict": "fail"}'
+    assert parse_judge_response(two)[0] == "pass"
+    prose = 'Judging {carefully}: {"verdict": "fail", "reasons": ["x"]}'
+    assert parse_judge_response(prose)[:1] == ("fail",)
+    # A truncated reply is not an object, and the complete object nested
+    # inside it (a fragment of it) is not the reply either.
+    from eval_gate.judge import first_json_object
+    assert first_json_object('{"a": {"b": 1}, "c": [') is None
+    assert first_json_object('Result {see below}: {"a": {"b": 1}}') == {"a": {"b": 1}}

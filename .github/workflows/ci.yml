@@ -23,9 +23,9 @@ jobs:
     steps:
       # Pinned to current majors (verified against the CI-green sibling repos):
       # checkout v7, setup-python v7.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -52,10 +52,25 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: python -m eval_gate.evals.gate
 
-      # This demo is the offline end to end path. Running it in CI
-      # keeps SAMPLE_RUN.md honest: if the demo breaks, the build
-      # breaks.
+      # This demo runs the whole offline pipeline: if the demo breaks, the
+      # build breaks. Running it does not show that SAMPLE_RUN.md still
+      # matches it; the next step does.
       - name: Demo (offline mock)
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: python scripts/run_demo.py
+
+      # SAMPLE_RUN.md's demo and five gate captures against fresh runs, with
+      # timestamps, run ids and hashes set aside. A capture taken before a fix
+      # fails here instead of shipping, and so does a hand written figure in
+      # the findings or the README that no capture holds.
+      - name: SAMPLE_RUN.md matches fresh runs
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python scripts/check_sample_run.py
+
+      # Every test id in the README's claims table must still be collected.
+      - name: README claims table resolves
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python scripts/verify_claims_table.py

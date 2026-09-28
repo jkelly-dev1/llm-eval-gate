@@ -1,9 +1,10 @@
 {
   "measured_pass_rate": 0.866667,
   "panel_mode": "one_miscalibrated",
-  "prompt_version_hash": "8278310947f5bf7ff4dab6fda00c9356a331ec1370b69bab0e004bfe8a7d8611",
-  "recorded_at": "2026-07-27T23:56:46.322183+00:00",
+  "panel_size": 3,
+  "prompt_version_hash": "8b545e68da22a28e5514e428b63916fee57b3e61d455453aebf6b7842c631741",
+  "recorded_at": "2026-09-26T06:56:15.333981+00:00",
   "repeats": 3,
-  "run_id": "run-64ea7349887c",
+  "run_id": "run-73e6ebe1f850",
   "sut_version": "sut.v1"
 }

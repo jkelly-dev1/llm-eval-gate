@@ -2,7 +2,10 @@
 # Rebuild SAMPLE_RUN.md from the captures. One short line instead of the six
 # wrapping path arguments the underlying build takes.
 #
-#     bash scripts/rebuild_sample_run.sh <demo.txt> <gate-dir> <YYYY-MM-DD>
+#     bash scripts/rebuild_sample_run.sh <demo.txt> <gate-dir> <YYYY-MM-DD> [<YYYY-MM-DD>]
+#
+# The first date is when the real model captures were taken; the optional
+# second is when the demo and gate captures were, if that was later.
 #
 # Inputs, all looked for in the repository root:
 #   SAMPLE_RUN.findings.md            the one hand written section, committed
@@ -11,7 +14,7 @@
 #
 # The two captures are 100KB of run output each and match *.local.md in
 # .gitignore, so they are never committed. If they are being kept somewhere
-# else, point CAPTURES at that directory rather than editing this script:
+# else, point CAPTURES at that directory instead of editing this script:
 #
 #     CAPTURES=/path/to/captures bash scripts/rebuild_sample_run.sh ...
 set -euo pipefail
@@ -19,6 +22,7 @@ set -euo pipefail
 DEMO="${1:?usage: rebuild_sample_run.sh <demo.txt> <gate-dir> <YYYY-MM-DD>}"
 GATE_DIR="${2:?missing gate capture directory}"
 CAPTURED_ON="${3:?missing capture date, YYYY-MM-DD}"
+OFFLINE_ON="${4:-$3}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CAPTURES="${CAPTURES:-$ROOT}"
@@ -42,4 +46,5 @@ done
     --anthropic "$ANTHROPIC" \
     --openai "$OPENAI" \
     --findings "$FINDINGS" \
-    --captured-on "$CAPTURED_ON"
+    --captured-on "$CAPTURED_ON" \
+    --offline-captured-on "$OFFLINE_ON"

@@ -39,15 +39,19 @@ from datetime import date
 
 from eval_gate.evals.golden import GOLDEN_SET, GoldenCase
 from eval_gate.llm import MOCK_MODEL, LLMProvider
-from eval_gate.prompts import PromptLibrary, render_judge_user_prompt
+from eval_gate.prompts import JUDGE_PROMPT_VERSION, PromptLibrary, render_judge_user_prompt
+
+#: The month the table below was last checked against the vendors' pages. Every
+#: report line that dates the prices reads this, so they cannot disagree.
+PRICES_AS_OF = "2026-08"
 
 #: USD per million tokens (input, output).
 #:
-#: prices are version sensitive and are as of 2026-07. Anthropic figures from
+#: prices are version sensitive and are as of PRICES_AS_OF. Anthropic figures from
 #: Anthropic's pricing page, OpenAI figures from developers.openai.com/api/docs
 #: /models. They are checked into the repo so an offline run can report dollars at
 #: all, which means they go stale silently. Anything load bearing should re-read
-#: the vendor's page rather than trusting this table.
+#: the vendor's page instead of trusting this table.
 #:
 #: claude-sonnet-5 is 2.00/10.00 per MTok. That figure was announced as an
 #: introductory rate through 2026-08-31; the vendor has since made it the
@@ -56,9 +60,9 @@ from eval_gate.prompts import PromptLibrary, render_judge_user_prompt
 #: still printed it can be reproduced, and nothing selects it by date.
 #:
 #: gpt-5 is listed FOR COMPARISON ONLY. It is cheaper per token than the third
-#: voting slot and is deliberately not used: OpenAI's own docs mark it superseded
-#: and point at the GPT-5.6 line. A gate should not be built on a model the vendor
-#: has moved off, and the price difference is not worth the migration it defers.
+#: voting slot and is not used: OpenAI's own docs mark it superseded and point at
+#: the GPT-5.6 line. A gate should not be built on a model the vendor has moved
+#: off, and the price difference is not worth the migration it defers.
 PRICES: dict[str, tuple[float, float]] = {
     "claude-opus-5": (5.00, 25.00),
     "claude-sonnet-5": (2.00, 10.00),
@@ -107,12 +111,12 @@ SONNET_INTRO_ENDED = "2026-08-31"
 class UnknownModelPrice(LookupError):
     """Raised when a model has no entry in PRICES.
 
-    Why this is an exception and not a zero: price_for used to return
-    (0.00, 0.00) for a model it did not know, so renaming a model or configuring a
-    new one made it report as FREE. That silently corrupts the one finding this
-    project exists to publish, which is whether a dearer judge buys better
-    agreement. A zero in a cost report is worse than a missing one, because a
-    reader has no way to tell it apart from a genuinely free slot.
+    Why this is an exception and not a zero: a price_for that returned
+    (0.00, 0.00) for a model it did not know would make a renamed or newly
+    configured model report as FREE. That silently corrupts the one finding this project
+    exists to publish, which is whether a dearer judge buys better agreement. A
+    zero in a cost report is worse than a missing one, because a reader has no
+    way to tell it apart from a genuinely free slot.
     """
 
     def __init__(self, model: str) -> None:
@@ -133,10 +137,10 @@ NO_PRICE_MARKER = "NO PRICE ON FILE"
 class PricingSlotMismatch(ValueError):
     """Raised when a report holds more judges than there are pricing slots.
 
-    priced_as_real used to index `slots[index % len(slots)]`, so a four judge
-    report priced against three slots quietly billed the fourth judge at the first
-    slot's model. Silent modulo wraparound in a cost report is exactly the class of
-    error this project argues against, so the mismatch is named and raised.
+    Indexing `slots[index % len(slots)]` would price a four judge report
+    against three slots by billing the fourth judge at the first slot's model.
+    Silent modulo wraparound in a cost report is exactly the class of error
+    this project argues against, so the mismatch is named and raised.
     """
 
 
@@ -144,7 +148,7 @@ def sonnet_intro_active(today: date | None = None) -> bool:
     """Whether claude-sonnet-5 is billed at 2.00/10.00 per MTok. Always true.
 
     A date comparison here would be a bug. The reason is recorded here rather
-    than the function quietly deleted. Pricing that is scheduled to change is
+    than the function silently deleted. Pricing that is scheduled to change is
     not the same fact as pricing that changed: the increase this date guarded
     against was canceled, and the introductory figure became the standard
     price. A report that flipped to 3.00/15.00 on 2026-09-01 would have
@@ -153,15 +157,14 @@ def sonnet_intro_active(today: date | None = None) -> bool:
     the guard working.
 
     `today` is still accepted so callers and captures reading the old signature
-    keep working; it is deliberately not consulted.
+    keep working; it is not consulted.
     """
     del today
     return True
 
 
-#: Characters per token in the offline approximation. Crude on purpose: a
-#: precise looking constant would invite someone to quote the result as a token
-#: count.
+#: Characters per token in the offline approximation. Crude: a precise looking
+#: constant would invite someone to quote the result as a token count.
 CHARS_PER_TOKEN = 4
 
 #: A judge's JSON verdict is short and near constant in length, so the offline
@@ -177,11 +180,9 @@ def approximate_tokens(text: str) -> int:
 def price_for(model: str, *, sonnet_intro: bool | None = None) -> tuple[float, float]:
     """(input, output) USD per million tokens, or raise UnknownModelPrice.
 
-    `sonnet_intro=None` means "decide by date", comparing today against
-    SONNET_INTRO_ENDS. An explicit True or False forces the rate, which is what a
-    test asserting a dollar figure must pass so that the suite does not start
-    failing the day the intro rate lapses, and what reproducing an old capture
-    needs.
+    `sonnet_intro` is accepted and ignored. claude-sonnet-5 has one price (see
+    sonnet_intro_active), and callers written against the dated signature keep
+    working.
     """
     if sonnet_intro is None:
         sonnet_intro = sonnet_intro_active()
@@ -324,7 +325,7 @@ def estimate_cost(
     versions: tuple[str, ...] = ("sut.v1", "sut.v2"),
     repeats: int = 1,
     library: PromptLibrary | None = None,
-    judge_prompt_version: str = "v1",
+    judge_prompt_version: str = JUDGE_PROMPT_VERSION,
     sonnet_intro: bool | None = None,
     approximate_only: bool = False,
 ) -> CostReport:
@@ -351,6 +352,7 @@ def estimate_cost(
                     source=case.source,
                     answer=case.answer(version),
                     attempt=1,
+                    judge_prompt_version=judge_prompt_version,
                 )
                 per_call, is_approximate = _count_tokens(
                     judge, system, user, approximate_only=approximate_only
@@ -388,7 +390,7 @@ class MeasuredUsage:
     This is the per judge total a real pass accumulates from those, and it carries
     `exact` forward: a slot that fell back to a deterministic mock has no vendor
     accounting behind it, so its figures are the characters/4 approximation and the
-    report has to keep saying so rather than presenting one measured column with a
+    report has to keep saying so instead of presenting one measured column with a
     guess hidden in it.
     """
 
@@ -479,13 +481,13 @@ def cost_accuracy_table(
 
     `sweep_usd_by_judge` replaces the estimated dollars with figures a real run
     actually measured, which is the only way this table answers its own question
-    on real models. It must name EVERY judge in the report: a table that quietly
+    on real models. It must name EVERY judge in the report: a table that silently
     fell back to the approximation for one judge would be comparing a measurement
     against a guess in the same column, and the row that ends up cheapest decides
     what the table says.
     """
     library = library or PromptLibrary()
-    system = library.get("judge", "v1").body
+    system = library.get("judge", JUDGE_PROMPT_VERSION).body
     per_call = 0
     for case in cases:
         for version in versions:
@@ -557,7 +559,7 @@ def format_cost_accuracy(
 
     `measured=True` says the dollars came from vendor reported usage on a real run
     rather than from characters/4. It only changes the footer, and it is a required
-    argument of the caller's intent rather than something inferred, because a
+    argument of the caller's intent instead of something inferred, because a
     footer that claimed measured dollars over estimated ones would be the exact
     class of quiet mislabeling this module raises UnknownModelPrice to prevent.
 
@@ -603,16 +605,27 @@ def format_cost_accuracy(
             f"  dearest  {dearest.judge_name} ({dearest.model}, ${dearest.sweep_usd:.4f}) "
             f"kappa {dearest.kappa:.3f}"
         )
-        if abs(gap) <= max(noise, 1e-9):
+        if cheapest.sweep_usd >= dearest.sweep_usd:
+            lines.append(
+                "  every priced judge costs the same per sweep, so there is no "
+                "price difference to weigh against agreement"
+            )
+        elif abs(gap) <= max(noise, 1e-9):
             lines.append(
                 f"  THE CHEAPEST JUDGE'S KAPPA IS WITHIN NOISE OF THE MOST EXPENSIVE: "
                 f"gap {gap:+.3f}, measured noise {noise:.3f}. On this golden set the "
                 f"extra spend is not buying agreement with humans."
             )
-        else:
+        elif gap > 0:
             lines.append(
                 f"  the kappa gap is {gap:+.3f} against measured noise {noise:.3f}, so the "
                 f"price difference is buying a real difference in agreement"
+            )
+        else:
+            lines.append(
+                f"  the kappa gap is {gap:+.3f} against measured noise {noise:.3f}: THE "
+                f"CHEAPEST JUDGE AGREES WITH THE HUMANS MORE, so the extra spend is "
+                f"buying worse agreement"
             )
         # The sharper question is not cheapest versus dearest, it is whether ANY
         # cheaper judge already matches the dearest. That is the row that decides
@@ -620,7 +633,8 @@ def format_cost_accuracy(
         matched = [
             row
             for row in rows[:-1]
-            if abs(dearest.kappa - row.kappa) <= max(noise, 1e-9)
+            if row.sweep_usd < dearest.sweep_usd
+            and abs(dearest.kappa - row.kappa) <= max(noise, 1e-9)
         ]
         if matched:
             best_value = matched[0]
@@ -635,12 +649,12 @@ def format_cost_accuracy(
     if measured:
         lines.append(
             "  dollars are MEASURED: vendor reported token usage for this run, priced "
-            "against the models that actually ran; prices as of 2026-07"
+            f"against the models that actually ran; prices as of {PRICES_AS_OF}"
         )
     else:
         lines.append(
             "  dollars are the offline characters/4 approximation priced against the models "
-            "each judge stands in for; prices as of 2026-07"
+            f"each judge stands in for; prices as of {PRICES_AS_OF}"
         )
     return "\n".join(lines)
 
@@ -680,7 +694,7 @@ def priced_as_real(
     modulo the slot count prices the extra judges against the wrong models
     without saying so.
     """
-    slots = slots or real_panel_slots()
+    slots = real_panel_slots() if slots is None else slots
     if len(report.per_judge) > len(slots):
         raise PricingSlotMismatch(
             f"cannot price {len(report.per_judge)} judges against {len(slots)} "
@@ -717,7 +731,7 @@ def combined_total_usd(*reports: CostReport) -> float:
 
     Shadow judges do not vote, but they do bill. Reporting the panel total alone
     would understate what running this harness costs, which is the sort of
-    omission that gets a shadow bench quietly switched off later by someone
+    omission that gets a shadow bench silently switched off later by someone
     looking at a surprise invoice.
     """
     return sum(report.total_usd for report in reports)
@@ -764,9 +778,8 @@ def format_cost(report: CostReport, title: str) -> str:
             "  token counts are characters/4, an APPROXIMATION, not a tokenizer; "
             "real runs use client.messages.count_tokens"
         )
-    intro_state = "in effect today" if sonnet_intro_active() else "EXPIRED as of today"
     lines.append(
-        f"  prices as of 2026-08; claude-sonnet-5 is $2/$10 per MTok, the "
-        f"standard price ({intro_state})"
+        f"  prices as of {PRICES_AS_OF}; claude-sonnet-5 is $2/$10 per MTok, the "
+        f"standard price (in effect today)"
     )
     return "\n".join(lines)

@@ -127,7 +127,7 @@ def test_a_tie_abstains_and_flags_the_case_for_human_escalation(
 
 
 def test_a_shadow_judge_never_appears_in_the_panel_vote(make_verdict):
-    """Aggregation refuses a shadow verdict rather than quietly dropping it.
+    """Aggregation refuses a shadow verdict rather than silently dropping it.
 
     Dropping it silently would be worse than counting it: the panel would report a
     two judge vote as a three judge one and no one would know a slot had gone
@@ -180,7 +180,7 @@ def test_shadow_results_travel_on_a_field_the_gate_never_reads(shadow_bench):
 def test_the_panel_record_keeps_the_disagreement_it_resolved(make_verdict):
     """A resolved 2-1 must not be reported as agreement.
 
-    split and abstentions stay on the record rather than being recomputed later,
+    split and abstentions stay on the record instead of being recomputed later,
     because the reason a case was escalated or narrowly decided is exactly what an
     audit trail is for.
     """
@@ -222,3 +222,23 @@ def test_the_panel_record_carries_the_case_it_judged(make_verdict):
     assert result.case_id == "gc-013"
     assert result.sut_version == "sut.v2"
     assert result.repeat == 3
+
+
+def test_a_panel_that_abstained_to_a_judge_is_not_unanimous(make_verdict):
+    """Three abstentions are a broken panel, not an agreeing one. Counted as
+    unanimous, they push unanimity_rate towards 1.0 and draw the "judges almost
+    never disagree" diagnosis."""
+    silent = aggregate([make_verdict("abstain", judge_name=f"j{i}") for i in range(3)])
+    assert silent.unanimous is False
+    agreed = aggregate([make_verdict("pass", judge_name=f"j{i}") for i in range(3)])
+    assert agreed.unanimous is True
+
+
+def test_verdicts_from_different_units_are_not_one_panel_verdict(make_verdict):
+    for field, values in (("case_id", ("gc-001", "gc-002")),
+                          ("sut_version", ("sut.v1", "sut.v2")),
+                          ("repeat", (1, 2))):
+        verdicts = [make_verdict("pass", judge_name="a", **{field: values[0]}),
+                    make_verdict("pass", judge_name="b", **{field: values[1]})]
+        with pytest.raises(ValueError, match="different units"):
+            aggregate(verdicts)

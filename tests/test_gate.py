@@ -24,6 +24,7 @@ comparison, and the refusal on an invalid one.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from eval_gate.config import get_settings
@@ -200,7 +201,7 @@ def test_a_baseline_from_another_panel_produces_no_deployment_decision(
     deployment decision is withdrawn instead, exit_driver names the incomparability
     AND the field that differs, and the exit code is 1.
 
-    The calibration verdict is deliberately still reached and still reported, as an
+    The calibration verdict is still reached and still reported, as an
     "also": whether this panel is fit to gate is a different question, and an
     invalid baseline does not answer it.
 
@@ -377,7 +378,7 @@ def test_the_run_result_the_gate_is_handed_keeps_shadow_verdicts_off_every_votin
     PanelVerdict. This is the other half: the RunResult the gate is handed. Shadow
     verdicts live on separately named fields, are flagged on the record itself, and
     are invisible to the accessors the report builder uses, so merging the two
-    benches would require deleting one of these assertions rather than forgetting a
+    benches would require deleting one of these assertions instead of forgetting a
     convention.
     """
     run = run_gate()
@@ -425,7 +426,7 @@ def test_a_missing_baseline_record_refuses_and_exits_one(run_gate, tmp_path):
 
     THREE SEPARATE MECHANISMS have to hold for that not to happen, the flag
     itself, the panel-failure row and the exit driver, so all three are
-    asserted here rather than trusting the exit code to imply the other two.
+    asserted here instead of trusting the exit code to imply the other two.
 
     Mutation check, executed against the runner: set `baseline_missing=False`
     where the decision is built, or drop either the failure row or the exit
@@ -472,3 +473,87 @@ def test_the_gate_forces_the_mock_even_with_both_vendor_keys_present(monkeypatch
             assert is_mock(slot), f"{slot.model} reached a gate panel slot"
     finally:
         get_settings.cache_clear()
+
+
+def test_a_one_judge_run_is_not_compared_with_a_three_judge_baseline(run_gate):
+    """A single judge's pass rate is not a majority's. panel_mode does not say
+    how many judges voted, so the baseline records panel_size and the gate
+    withdraws the decision when it differs."""
+    run = run_gate("--panel-size", "1", "--candidate", "sut.v2")
+
+    assert run.decision.baseline_differing_fields == ["panel_size"]
+    assert run.decision.deployment_decision == NO_DECISION
+    assert run.decision.regression_detected is False
+    assert "REGRESSION" not in run.output.split("Decision")[0]
+
+
+def test_unanimity_is_not_a_check_on_a_one_judge_panel(run_gate):
+    """One judge always agrees with itself. The unanimity ceiling would fail
+    every single judge run on a figure it cannot measure."""
+    run = run_gate("--panel-size", "1", "--candidate", "sut.v2")
+
+    assert not [f for f in run.decision.panel_failures if "unanimity" in f]
+    assert "not measured (one judge)" in run.output
+    assert "almost never disagree" not in run.output
+
+
+def test_a_baseline_that_does_not_record_its_panel_size_is_not_comparable(
+    run_gate, tmp_path
+):
+    """A record without the field is reported as not comparable."""
+    record = json.loads((REPO_ROOT / "baseline.json").read_text())
+    del record["panel_size"]
+    legacy = tmp_path / "legacy.json"
+    legacy.write_text(json.dumps(record))
+
+    run = run_gate(baseline=legacy)
+
+    assert run.decision.baseline_differing_fields == ["panel_size"]
+    assert run.decision.deployment_decision == NO_DECISION
+    assert "does not record how many judges measured it" in run.output
+
+
+def test_a_refused_run_still_reports_an_unhealthy_panel(run_gate, monkeypatch):
+    """The noise floor refusal says nothing about the panel. With a kappa floor
+    no judge can meet, the refused run must still say panel_healthy NO and
+    list the failed checks, as the incomparable-baseline refusal does."""
+    monkeypatch.setenv("GATE_MIN_JUDGE_KAPPA", "0.99")
+    run = run_gate("--threshold", "0.05")
+
+    assert run.decision.refused is True
+    assert run.decision.panel_healthy is False
+    assert [f for f in run.decision.failures if "kappa" in f]
+    assert "panel_healthy                      NO" in run.output
+
+
+def test_a_candidate_the_run_never_scored_is_refused_and_never_recorded(
+    run_gate, monkeypatch, tmp_path
+):
+    """GATE_CANDIDATE is not restricted the way --candidate is. A version the
+    run never measured has no pass rate: reading it as 0.000 reported a
+    REGRESSION, and --record-baseline wrote that 0.000 as the new baseline."""
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text((REPO_ROOT / "baseline.json").read_text())
+    before = baseline.read_text()
+    monkeypatch.setenv("GATE_CANDIDATE", "sut.v3")
+
+    run = run_gate("--record-baseline", baseline=baseline)
+
+    assert run.exit_code == 1
+    assert run.decision.refused is True
+    assert run.decision.regression_detected is False
+    assert run.decision.exit_drivers[0] == (
+        "refused: candidate sut.v3 was not measured by this run")
+    assert "--record-baseline REFUSED" in run.output
+    assert baseline.read_text() == before
+
+
+def test_a_recorded_baseline_names_the_panel_size_that_measured_it(run_gate, tmp_path):
+    """Without the field, the next run could not compare it (see above)."""
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text((REPO_ROOT / "baseline.json").read_text())
+
+    run = run_gate("--record-baseline", baseline=baseline)
+
+    assert run.exit_code == 0
+    assert json.loads(baseline.read_text())["panel_size"] == 3

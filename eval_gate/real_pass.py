@@ -22,7 +22,7 @@ The same seam, not a second code path
 
 The calibration and consistency sweeps go through run_panel and judge_case, the
 same functions the offline sections use. The provider seam is the project's
-claim; a real-models-only measurement path would quietly make it false, because
+claim; a real-models-only measurement path would silently make it false, because
 then the offline run would no longer be exercising the code the real run uses.
 All this module adds around that seam is GuardedJudge, and a wrapper that
 proxies name and model is not a second path, it is the same path with the
@@ -45,7 +45,7 @@ It abstains, with the reason recorded, and the pass carries on. Aborting 400
 calls into a paid run because call 401 timed out would throw away the whole
 measurement, and an abstention is already the project's answer to a judge that
 cannot be read: it does not vote, it is counted separately from agreement, and a
-judge that is quietly broken therefore shows up as a rising abstention rate
+judge that is silently broken therefore shows up as a rising abstention rate
 rather than as a plausible looking accuracy number.
 """
 
@@ -96,7 +96,7 @@ def prompt_context(user: str) -> tuple[str, str, int]:
 
     The wrapper is handed a prompt string, not a case object, because that is what
     the provider Protocol passes. Recovering the three identifiers from the prompt
-    keeps the wrapper on the same seam as the judges it wraps rather than needing
+    keeps the wrapper on the same seam as the judges it wraps instead of needing
     its own channel from the runner.
     """
     case = _CASE_ID.search(user)
@@ -650,7 +650,7 @@ def guard(panel: list[LLMProvider], names: list[str], *, echo=print) -> list[Gua
 
 @dataclass
 class RealPassResult:
-    """Everything the paid pass measured. There is no decision field, on purpose.
+    """Everything the paid pass measured. There is no decision field.
 
     A reader looking for the gate outcome of a real model run will not find one
     here, because there is not one. The offline sections decided the exit code
@@ -1001,7 +1001,7 @@ def format_real_pass(result: RealPassResult) -> str:
     if not panel.panel_earned_its_cost:
         lines.append(
             "  THE PANEL DID NOT BEAT ITS BEST MEMBER on real models: three judges cost "
-            "3x and bought nothing measurable here"
+            "3x the calls and bought nothing measurable here"
         )
     for name in (report.baseline_version, report.candidate_version):
         row(f"pass_rate[{name}]", f"{panel.pass_rate.get(name, 0.0):.3f}")

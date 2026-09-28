@@ -195,7 +195,7 @@ def _record(
     own calibration checks is how a captured panel becomes the reference, and the
     committed file would then look authoritative forever.
 
-    An incomparable baseline is not on that list, deliberately. Recording writes a
+    An incomparable baseline is not on that list. Recording writes a
     NEW record out of what THIS run measured, and nothing in it is derived from the
     old one, so the old record's comparability cannot taint it. Re-recording is in
     fact the fix for an incomparable baseline, and refusing here would leave the
@@ -203,8 +203,8 @@ def _record(
     """
     if decision.refused:
         return (
-            "  --record-baseline REFUSED: the run itself was refused because the "
-            "threshold sits inside the noise floor. There is no trustworthy pass rate "
+            "  --record-baseline REFUSED: the run itself was refused "
+            f"({decision.exit_drivers[0]}). There is no trustworthy pass rate "
             "to record."
         )
     if not decision.panel_healthy:
@@ -224,6 +224,7 @@ def _record(
         measured_pass_rate=round(decision.candidate_pass_rate, 6),
         recorded_at=utc_now(),
         run_id=report.run_id,
+        panel_size=report.panel_size,
     )
     path = write_baseline(settings.baseline_path, record)
     version = candidate.split(".")[-1]

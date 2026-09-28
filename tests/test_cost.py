@@ -3,13 +3,13 @@
 The property is that the cost report cannot flatter the design. A panel has to
 come out more expensive than a single judge, in calls and in dollars, because the
 whole calibration argument is about whether that extra spend bought anything. A
-report that quietly totaled to the same figure either way would make the question
+report that silently totaled to the same figure either way would make the question
 unaskable.
 
 The second property is coverage of the price table. Every model this project would
 actually call, voting or shadow, real or stood in for by a mock, needs a price
 entry. A missing entry is not survivable here, so price_for RAISES
-UnknownModelPrice rather than returning zero per million tokens: a zero in a cost
+UnknownModelPrice instead of returning zero per million tokens: a zero in a cost
 report is worse than a missing one, because it reads as "free" rather than as
 "unknown" and would silently invert this project's headline finding. The report
 builders convert that raise into no price on file plus a report level flag, and
@@ -61,8 +61,8 @@ from eval_gate.llm import (
 #: panel and one judge, and that ratio does not depend on how many cases are swept.
 CASES_SLICE = 4
 
-#: A model id that is deliberately absent from PRICES. It is spelled like a real
-#: successor model on purpose: a renamed or newly released judge is exactly how an
+#: A model id that is absent from PRICES. It is spelled like a real
+#: successor model: a renamed or newly released judge is exactly how an
 #: unpriced model gets into a run, and it must never be reported as free.
 UNPRICED_MODEL = "claude-opus-6"
 
@@ -195,7 +195,7 @@ def test_the_cost_table_covers_every_configured_judge_model(settings: Settings, 
 
     This is the coverage half: every model a run could bill against is in PRICES
     today, so no real invocation lands on the unknown model path at all. The
-    behavior half, that the unknown path raises rather than returning zero, is
+    behavior half, that the unknown path raises instead of returning zero, is
     pinned by test_an_unknown_model_refuses_to_be_priced_at_zero.
 
     Mutation check, executed in-test: delete gpt-5.6-terra from PRICES, which is
@@ -253,11 +253,11 @@ def test_an_offline_cost_report_labels_its_token_counts_as_approximate(
 def test_an_unknown_model_refuses_to_be_priced_at_zero():
     """A model with no price entry raises instead of costing nothing.
 
-    price_for used to answer (0.00, 0.00) for anything it did not recognize, so a
-    renamed or newly configured judge reported as FREE and the project's headline
-    finding, whether a dearer judge buys better agreement, quietly inverted. The
-    exception has to name the model and point at the table, because the person who
-    sees it is the person who renamed the model.
+    A price_for that answered (0.00, 0.00) for anything it did not recognize
+    would report a renamed or newly configured judge as FREE, and the project's
+    headline finding, whether a dearer judge buys better agreement, would
+    silently invert. The exception has to name the model and point at the
+    table, because the person who sees it is the person who renamed the model.
 
     Mutation check: restore the PRICES.get(model, (0.00, 0.00)) fallback in
     price_for and this test fails.
@@ -435,6 +435,14 @@ def test_pricing_more_judges_than_slots_is_an_error_not_a_wraparound(
     message = str(raised.value)
     assert "5" in message and "3" in message
 
+    # An explicitly empty slots list is not "use the defaults": three judges
+    # against no slots is the same mismatch.
+    panel_only = estimate_cost(get_panel(settings), cases=golden_set[:CASES_SLICE],
+                               library=library)
+    with pytest.raises(PricingSlotMismatch,
+                       match=r"cannot price 3 judges against 0 pricing slots"):
+        priced_as_real(panel_only, slots=[], sonnet_intro=True)
+
     # The fix is a slots list per judge, and then every judge is priced against its
     # OWN slot rather than a recycled one.
     slots = real_panel_slots() + real_shadow_slots()
@@ -448,3 +456,53 @@ def test_pricing_more_judges_than_slots_is_an_error_not_a_wraparound(
         sonnet_intro=True,
     )
     assert len(single.per_judge) == 1
+
+
+def _verdict_rows(cheap_kappa: float, dear_kappa: float, *, cheap_usd: float = 0.10,
+                  dear_usd: float = 0.30):
+    row = cost.CostAccuracyRow
+    return [
+        row("cheap", "gpt-5.6-luna", True, cheap_kappa, 0.1, cheap_usd),
+        row("dear", "claude-opus-5", True, dear_kappa, 0.1, dear_usd),
+    ]
+
+
+def _verdict(rows, noise: float) -> str:
+    lines = format_cost_accuracy(rows, noise=noise).splitlines()
+    return "\n".join(line for line in lines if not line.startswith(("  cheap", "  dear")))
+
+
+def test_the_cost_verdict_follows_the_sign_of_the_kappa_gap():
+    """README bullet 2 and honest limit 2: the gap is read against the noise
+    floor, and its DIRECTION decides the sentence. A dearer judge that agrees
+    LESS is not "buying a real difference in agreement"."""
+    better = _verdict(_verdict_rows(0.40, 0.80), noise=0.05)
+    assert "buying a real difference in agreement" in better
+    assert "buying worse agreement" not in better
+
+    worse = _verdict(_verdict_rows(0.80, 0.40), noise=0.05)
+    assert "THE CHEAPEST JUDGE AGREES WITH THE HUMANS MORE" in worse
+    assert "buying a real difference in agreement" not in worse
+
+    within = _verdict(_verdict_rows(0.78, 0.80), noise=0.05)
+    assert "WITHIN NOISE OF THE MOST EXPENSIVE" in within
+    assert "CHEAPER JUDGE WITHIN NOISE OF THE DEAREST: cheap" in within
+    assert "buying a real difference" not in within
+
+
+def test_a_judge_at_the_same_price_is_never_called_cheaper():
+    """Two judges at one price: there is no price difference, so neither the
+    cheapest-versus-dearest verdict nor the CHEAPER JUDGE line may be printed.
+
+    The second half is the shape the captured-panel run printed: a twin of the
+    dearest judge, at its price and its kappa, named a CHEAPER JUDGE."""
+    same = _verdict(_verdict_rows(0.0, 0.108, cheap_usd=0.38, dear_usd=0.38), noise=0.0)
+    assert "no price difference" in same
+    assert "CHEAPER JUDGE" not in same
+    assert "buying" not in same
+
+    row = cost.CostAccuracyRow
+    twin = [row("cheap", "gpt-5.6-luna", False, 0.108, 0.7, 0.15),
+            row("twin", "gpt-5.6-terra", True, 0.0, 1.0, 0.38),
+            row("dear", "gpt-5.6-terra", True, 0.0, 1.0, 0.38)]
+    assert "CHEAPER JUDGE" not in _verdict(twin, noise=0.0)

@@ -11,7 +11,9 @@ KEY_INFO.md
 # have missed audit/registry.json and anything in a nested run directory, and
 # would have committed the demo's log and registry state. audit/* excludes
 # nested directories wholesale, which is what was wanted. The directory is
-# recreated at runtime, and the gate writes to a tempfile.TemporaryDirectory()
-# so a CI run never touches it at all.
+# recreated at runtime. The gate writes its audit log to a
+# tempfile.TemporaryDirectory(), so a CI run adds no audit records here, but it
+# does write the prompt registry's state to audit/registry.json
+# (REGISTRY_STATE_PATH), which this pattern keeps out of git.
 audit/*
 !audit/.gitkeep

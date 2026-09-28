@@ -2,9 +2,16 @@
 
 Each record is one JSON line. Before writing, `prev_hash` is set to the previous
 record's `record_hash`, and this record's hash is computed over its canonical
-payload, which includes `prev_hash`. Editing, reordering, or removing a past
-record therefore breaks every hash after it, and `verify_chain` reports the break
-instead of quietly accepting the file.
+payload, which includes `prev_hash`. Editing, reordering, or removing a record
+that has a successor therefore breaks every hash after it, and `verify_chain`
+reports the break instead of silently accepting the file.
+
+What it does not detect: the hash is plain sha256 with no key and no copy of
+the head hash kept anywhere else. Removing the LAST record leaves a shorter
+chain that verifies, and in a gate run the last record is the gate_decision.
+Anyone who can write the file can also rewrite a record and recompute every
+hash after it. Detecting either needs the head hash, or a signature, held
+outside the log.
 
 Timestamps are NOT frozen. They are excluded from the determinism claim rather
 than faked, because a faked timestamp in an audit trail is worse than an honest
