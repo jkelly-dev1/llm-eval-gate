@@ -537,6 +537,11 @@ real-model run found the matching trap one layer down: a neighbor-probe
 threshold calibrated against one embedding model separates nothing under
 another, and reports zeros while doing it.
 
+[fleet-rollback-guarantees](https://github.com/jkelly-dev1/fleet-rollback-guarantees)
+starts where this gate stops. It assumes a bad model got through anyway
+and measures how long a simulated robot fleet runs on it before a
+rollback lands: detection, decision and convergence, in frames.
+
 ## License
 
 MIT
